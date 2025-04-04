@@ -1,7 +1,3 @@
-"""Test mocks: they fake objects for testing.
-
-.. versionadded:: 7.0
-"""
 from __future__ import annotations
 
 

@@ -1,16 +1,3 @@
-"""
-find.py - Sopel Spelling Correction Plugin
-This plugin will fix spelling errors if someone corrects them
-using the sed notation (s///) commonly found in vi/vim.
-
-Copyright 2011, Michael Yanovich, yanovich.net
-Copyright 2013, Elsie Powell, embolalia.com
-Copyright 2020, dgw, technobabbl.es
-Includes contributions from: Matt Meinwald, and Morgan Goose
-Licensed under the Eiffel Forum License 2.
-
-https://sopel.chat
-"""
 from __future__ import annotations
 
 from collections import deque
@@ -146,7 +133,7 @@ def kick_cleanup(bot, trigger):
              (?P<new>         # Group 4 is what to replace with
                (?:\\\||[^|])* # One or more non-pipe or escaped pipe
              )
-             (?:|             # Optional separator followed by group 5 (flags)
+             (?:\|             # Optional separator followed by group 5 (flags)
                 (?P<flags>\S+)
              )?
             """)

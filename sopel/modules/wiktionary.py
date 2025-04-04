@@ -1,4 +1,3 @@
-"""
 wiktionary.py - Sopel Wiktionary Plugin
 Copyright 2009, Sean B. Palmer, inamidst.com
 Licensed under the Eiffel Forum License 2.
@@ -131,7 +130,7 @@ def wiktionary(bot, trigger):
 
 
 @plugin.command('ety')
-@plugin.example('.ety bailiwick', "bailiwick: From bailie (“bailiff”) and wick (“dwelling”), from Old English wīc.")
+@plugin.example('.ety bailiwick', "bailiwick: From bailie ("bailiff") and wick ("dwelling"), from Old English wīc.")
 @plugin.output_prefix(PLUGIN_OUTPUT_PREFIX)
 def wiktionary_ety(bot, trigger):
     """Look up a word's etymology on Wiktionary."""

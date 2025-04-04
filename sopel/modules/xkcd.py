@@ -1,4 +1,3 @@
-"""
 xkcd.py - Sopel xkcd Plugin
 Copyright 2010, Michael Yanovich (yanovich.net), and Morgan Goose
 Copyright 2012, Lior Ramati

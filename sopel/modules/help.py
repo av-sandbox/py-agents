@@ -1,14 +1,3 @@
-"""
-help.py - Sopel Help Plugin
-Copyright 2008, Sean B. Palmer, inamidst.com
-Copyright © 2013, Elad Alfassa, <elad@fedoraproject.org>
-Copyright © 2018, Adam Erdman, pandorah.org
-Copyright © 2019, Tomasz Kurcz, github.com/uint
-Copyright © 2019, dgw, technobabbl.es
-Licensed under the Eiffel Forum License 2.
-
-https://sopel.chat
-"""
 from __future__ import annotations
 
 import collections
@@ -146,8 +135,8 @@ def post_to_ubuntu(msg):
         'expiration': '',
         'content': msg,
     }
-    result = _requests_post_catch_errors(
-        'https://pastebin.ubuntu.com/', data=data)
+    try:
+        result = _requests_post_catch_errors(
 
     if not re.match(r'https://pastebin\.ubuntu\.com/p/[^/]+/', result.url):
         LOGGER.error("Invalid Ubuntu pastebin response url %s", result.url)

@@ -1,11 +1,3 @@
-"""
-units.py - Sopel Unit Conversion Plugin
-Copyright © 2013, Elad Alfassa, <elad@fedoraproject.org>
-Copyright © 2013, Dimitri Molenaars, <tyrope@tyrope.nl>
-Licensed under the Eiffel Forum License 2.
-
-https://sopel.chat
-"""
 from __future__ import annotations
 
 import re

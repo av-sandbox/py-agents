@@ -1,10 +1,3 @@
-"""
-safety.py - Alerts about malicious URLs
-Copyright © 2014, Elad Alfassa, <elad@fedoraproject.org>
-Licensed under the Eiffel Forum License 2.
-
-This plugin uses virustotal.com
-"""
 from __future__ import annotations
 
 import json
@@ -249,7 +242,7 @@ def _clean_cache(bot):
             overage = len(bot.memory['safety_cache']) - cache_limit
             if overage > 0:
                 extra_keys = sorted(
-                    (data.fetched, key)
+                    (data['fetched'], key)
                     for (key, data)
                     in bot.memory['safety_cache'].items())[:overage]
                 for (_, key) in extra_keys:

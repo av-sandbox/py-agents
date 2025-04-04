@@ -1,10 +1,3 @@
-"""
-py.py - Sopel Python Eval Plugin
-Copyright 2008, Sean B. Palmer, inamidst.com
-Licensed under the Eiffel Forum License 2.
-
-https://sopel.chat
-"""
 from __future__ import annotations
 
 from requests import get

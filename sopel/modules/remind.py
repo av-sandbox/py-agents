@@ -1,11 +1,3 @@
-"""
-remind.py - Sopel Reminder Plugin
-Copyright 2011, Sean B. Palmer, inamidst.com
-Copyright 2019, dgw, technobabbl.es
-Licensed under the Eiffel Forum License 2.
-
-https://sopel.chat
-"""
 from __future__ import annotations
 
 import collections

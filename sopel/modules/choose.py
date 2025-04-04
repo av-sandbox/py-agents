@@ -1,13 +1,3 @@
-"""
-choose.py - Sopel Choice Plugin
-Copyright 2010-2013, Dimitri "Tyrope" Molenaars, TyRope.nl
-Copyright 2013, Ari Koivula, <ari@koivu.la>
-Copyright 2018, Florian Strzelecki, <florian.strzelecki@gmail.com>
-Copyright 2019, dgw, technobabbl.es
-Licensed under the Eiffel Forum License 2.
-
-https://sopel.chat
-"""
 from __future__ import annotations
 
 import random

@@ -1,4 +1,3 @@
-"""
 version.py - Sopel Version Plugin
 Copyright 2009, Silas Baronda
 Copyright 2014, Dimitri Molenaars <tyrope@tyrope.nl>

@@ -1,11 +1,3 @@
-"""
-tell.py - Sopel Tell and Ask Plugin
-Copyright 2008, Sean B. Palmer, inamidst.com
-Copyright 2019, dgw, technobabbl.es
-Licensed under the Eiffel Forum License 2.
-
-https://sopel.chat
-"""
 from __future__ import annotations
 
 from collections import defaultdict
@@ -230,7 +222,6 @@ def get_nick_reminders(reminders, nick):
         if datetime.startswith(today):
             datetime = datetime[len(today) + 1:]
         lines.append(template % (nick, datetime, teller, verb, nick, msg))
-
     return lines
 
 

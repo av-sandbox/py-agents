@@ -1,4 +1,3 @@
-"""
 seen.py - Sopel Seen Plugin
 Copyright 2008, Sean B. Palmer, inamidst.com
 Copyright © 2012, Elad Alfassa <elad@fedoraproject.org>

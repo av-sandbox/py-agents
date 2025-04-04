@@ -1,11 +1,3 @@
-"""
-search.py - Sopel Search Engine Plugin
-Copyright 2008-9, Sean B. Palmer, inamidst.com
-Copyright 2012, Elsie Powell, embolalia.com
-Licensed under the Eiffel Forum License 2.
-
-https://sopel.chat
-"""
 from __future__ import annotations
 
 import re

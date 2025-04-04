@@ -1,10 +1,3 @@
-"""
-lmgtfy.py - Sopel Let Me Google That For You Plugin
-Copyright 2013, Dimitri Molenaars http://tyrope.nl/
-Licensed under the Eiffel Forum License 2.
-
-https://sopel.chat/
-"""
 from __future__ import annotations
 
 from urllib.parse import urlencode

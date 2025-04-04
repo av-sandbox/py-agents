@@ -1,4 +1,3 @@
-"""
 meetbot.py - Sopel Meeting Logger Plugin
 This plugin is an attempt to implement some of the functionality of Debian's meetbot
 Copyright © 2012, Elad Alfassa, <elad@fedoraproject.org>
@@ -18,6 +17,8 @@ from typing import Dict
 
 from sopel import formatting, plugin, tools
 from sopel.config import types
+from sqlalchemy import text
+
 from sopel.modules.url import find_title
 
 

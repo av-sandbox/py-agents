@@ -1,4 +1,3 @@
-"""
 countdown.py - Sopel Countdown Plugin
 Copyright 2011, Michael Yanovich, yanovich.net
 Licensed under the Eiffel Forum License 2.

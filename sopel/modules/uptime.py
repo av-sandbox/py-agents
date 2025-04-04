@@ -1,10 +1,3 @@
-"""
-uptime.py - Sopel Uptime Plugin
-Copyright 2014, Fabian Neundorf
-Licensed under the Eiffel Forum License 2.
-
-https://sopel.chat
-"""
 from __future__ import annotations
 
 import datetime

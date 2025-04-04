@@ -1,10 +1,3 @@
-"""
-wikipedia.py - Sopel Wikipedia Plugin
-Copyright 2013 Elsie Powell - embolalia.com
-Licensed under the Eiffel Forum License 2.
-
-https://sopel.chat
-"""
 from __future__ import annotations
 
 from html.parser import HTMLParser
@@ -228,7 +221,7 @@ def say_section(bot, trigger, server, query, section):
 
 
 def mw_section(server, query, section):
-    """
+from sqlalchemy import text
     Retrieves a snippet from the specified section from the given page
     on the given server.
     """

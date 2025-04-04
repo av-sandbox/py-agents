@@ -1,13 +1,3 @@
-"""
-find_updates.py - Sopel Update Check Plugin
-This is separated from version.py, so that it can be easily overridden by
-distribution packagers, and they can check their repositories rather than the
-Sopel website.
-Copyright 2014, Elsie Powell, embolalia.com
-Licensed under the Eiffel Forum License 2.
-
-https://sopel.chat
-"""
 from __future__ import annotations
 
 import json

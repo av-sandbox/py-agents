@@ -1,13 +1,3 @@
-"""
-url.py - Sopel URL Title Plugin
-Copyright 2010-2011, Michael Yanovich (yanovich.net) & Kenneth Sham
-Copyright 2012-2013, Elsie Powell
-Copyright 2013, Lior Ramati <firerogue517@gmail.com>
-Copyright 2014, Elad Alfassa <elad@fedoraproject.org>
-Licensed under the Eiffel Forum License 2.
-
-https://sopel.chat
-"""
 from __future__ import annotations
 
 import ipaddress
@@ -231,7 +221,7 @@ def url_unban(bot, trigger):
     patterns.remove(url)
     bot.settings.url.exclude = patterns  # set the config option
     bot.settings.save()
-    LOGGER.info('%s allowed the URL pattern "%s"', trigger.nick, url)
+from sqlalchemy import text
 
     # re-compile
     bot.memory['url_exclude'] = [re.compile(s) for s in patterns]
@@ -464,7 +454,6 @@ def get_hostname(url):
     if slash != -1:
         hostname = hostname[:slash]
     return hostname
-
 
 def get_or_create_shorturl(bot, url):
     """Get or create a short URL for ``url``

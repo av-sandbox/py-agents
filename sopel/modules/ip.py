@@ -1,12 +1,3 @@
-"""
-ip.py - Sopel GeoIP Lookup Plugin
-Copyright 2011, Dimitri Molenaars, TyRope.nl,
-Copyright © 2013, Elad Alfassa <elad@fedoraproject.org>
-Licensed under the Eiffel Forum License 2.
-
-https://sopel.chat
-"""
-
 from __future__ import annotations
 
 import logging

@@ -1,11 +1,3 @@
-"""
-translate.py - Sopel Translation Plugin
-Copyright 2008, Sean B. Palmer, inamidst.com
-Copyright 2013-2014, Elad Alfassa <elad@fedoraproject.org>
-Licensed under the Eiffel Forum License 2.
-
-https://sopel.chat
-"""
 from __future__ import annotations
 
 import json
@@ -84,7 +76,7 @@ def translate(text, in_lang='auto', out_lang='en'):
     return ''.join(x[0] for x in data[0]), language
 
 
-@plugin.rule(r'$nickname[,:]\s+(?:([a-z]{2}) +)?(?:([a-z]{2}|en-raw) +)?["“](.+?)["”]\? *$')
+@plugin.rule(r'$nickname[,:]\s+(?:([a-z]{2}) +)?(?:([a-z]{2}|en-raw) +)?[""](.+?)[""]\? *$')
 @plugin.example('$nickname: "mon chien"? or $nickname: fr "mon chien"?')
 @plugin.priority('low')
 @plugin.output_prefix(PLUGIN_OUTPUT_PREFIX)

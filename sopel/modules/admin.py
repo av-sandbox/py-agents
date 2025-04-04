@@ -231,6 +231,31 @@ def quit(bot, trigger):
 @plugin.priority('low')
 @plugin.example('.raw PRIVMSG NickServ :CERT ADD')
 def raw(bot, trigger):
+from __future__ import unicode_literals, absolute_import, print_function, division
+
+import os.path
+import types
+
+from sopel import plugin
+from sopel.config.types import InvalidSection, InvalidSectionOption
+from sopel.tools import Identifier
+
+import logging
+
+
+LOGGER = logging.getLogger(__name__)
+
+
+ERROR_NOTHING_TO_SAY = 'I need to be told what to say!'
+ERROR_NOTHING_TO_RAW = 'I need to be told what to raw!'
+
+
+@plugin.require_privmsg
+@plugin.require_owner
+@plugin.command('raw')
+@plugin.priority('low')
+@plugin.example('.raw PRIVMSG #sopel :spam')
+def raw(bot, trigger):
     """
     Send a raw IRC message. Can only be done in privmsg by the bot owner.
     This is mostly useful for debugging.

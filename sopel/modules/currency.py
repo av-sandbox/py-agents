@@ -1,11 +1,3 @@
-"""
-currency.py - Sopel Currency Conversion Plugin
-Copyright 2013, Elsie Powell, embolalia.com
-Copyright 2019, Mikkel Jeppesen
-Licensed under the Eiffel Forum License 2.
-
-https://sopel.chat
-"""
 from __future__ import annotations
 
 import logging
@@ -231,7 +223,6 @@ def update_rates(bot):
                 web.quote(bot.config.currency.fixer_io_key)
             )
         )
-
         if not response.json()['success']:
             raise FixerError('Fixer.io request failed with error: {}'.format(response.json()['error']))
     else:

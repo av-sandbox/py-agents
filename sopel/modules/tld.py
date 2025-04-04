@@ -1,11 +1,3 @@
-"""
-tld.py - Sopel TLD Plugin
-Copyright 2009-10, Michael Yanovich, yanovich.net
-Copyright 2020, dgw, technobabbl.es
-Licensed under the Eiffel Forum License 2.
-
-https://sopel.chat
-"""
 from __future__ import annotations
 
 from datetime import datetime
@@ -16,6 +8,8 @@ import re
 
 import pytz
 import requests
+
+from sqlalchemy import text
 
 from sopel import formatting, plugin, tools
 

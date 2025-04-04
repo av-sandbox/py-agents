@@ -1,11 +1,3 @@
-"""clock.py - Sopel Clock Plugin
-
-Copyright 2008-9, Sean B. Palmer, inamidst.com
-Copyright 2012, Elsie Powell, embolalia.com
-Licensed under the Eiffel Forum License 2.
-
-https://sopel.chat
-"""
 from __future__ import annotations
 
 from sopel import plugin
@@ -230,7 +222,6 @@ def unset_user_format(bot, trigger):
     """Unsets your preferred format for time."""
     bot.db.delete_nick_value(trigger.nick, 'time_format')
     bot.reply('Successfully unset time format')
-
 
 @plugin.command('gettimeformat', 'gettf')
 @plugin.example('.gettf Exirel', user_help=True)

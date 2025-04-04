@@ -1,10 +1,3 @@
-"""
-pronouns.py - Sopel Pronouns Plugin
-Copyright © 2016, Elsie Powell
-Licensed under the Eiffel Forum License 2.
-
-https://sopel.chat
-"""
 from __future__ import annotations
 
 from sopel import plugin

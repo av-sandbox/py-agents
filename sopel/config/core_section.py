@@ -229,228 +229,256 @@ class CoreSection(StaticSection):
     """
 
     ca_certs = FilenameAttribute('ca_certs', default=_find_certs())
-    """The path to the CA certs ``.pem`` file.
+from __future__ import annotations
+import os.path
+
+from sqlalchemy import create_engine
+from sqlalchemy.engine import URL
+
+from sopel.config.types import (
+    ChoiceAttribute,
+    FilenameAttribute,
+    ListAttribute,
+    SecretAttribute,
+    StaticSection,
+    ValidatedAttribute,
+)
+
+
+def _db_engine_uri(config):
+    """Generate a SQLAlchemy engine URI from config options.
+
+    :param config: :class:`CoreSection` instance
+    :return: SQLAlchemy engine URI
+
+    .. note::
+
+        If the ``db_url`` option is defined, it will be returned as-is.
+
+    """
+    if config.db_url:
+        return config.db_url
+
+    if config.db_type == 'sqlite':
+        filename = config.db_filename
+        if not os.path.isabs(filename):
+            filename = os.path.join(config.homedir, filename)
+        return 'sqlite:///%s' % filename
+    elif config.db_type == 'mysql':
+        # Ensure proper default for MySQL charset
+        query = {}
+        if not config.db_driver:
+            query['charset'] = 'utf8mb4'
+        return URL.create(
+            drivername=config.db_type if not config.db_driver else '%s+%s' % (config.db_type, config.db_driver),
+            username=config.db_user,
+            password=config.db_pass,
+            host=config.db_host,
+            port=config.db_port,
+
+    .. versionadded:: 8.0
+        The ``appservice`` option.
+
+    """
+
+    auth_password = SecretAttribute('auth_password')
+    """The password to use to authenticate with the :attr:`auth_method`.
+
+    This is ignored if the authentication method is ``cert`` or ``none``.
+
+    .. versionadded:: 6.2
+    """
+
+    auth_target = ValidatedAttribute('auth_target')
+    """The target to use for authentication.
+
+    This is ignored if the authentication method is ``server``, ``cert``, or
+    ``none``.
+
+    .. versionadded:: 7.0
+    """
+
+    bind_host = ValidatedAttribute('bind_host')
+    """Bind the connection to a specific IP.
+
+    This is useful if you have a server with multiple IPs.
 
     Example:
 
     .. code-block:: ini
 
-        ca_certs = /etc/ssl/certs/ca-certificates.crt
-
-    If not specified, Sopel will try to find the certificate trust store
-    itself from a set of known locations.
-
-    If the given value is not an absolute path, it will be interpreted relative
-    to the directory containing the config file with which Sopel was started.
-    """
-
-    channels = ListAttribute('channels')
-    """List of channels for the bot to join when it connects.
-
-    If a channel key needs to be provided, separate it from the channel name
-    with a space:
-
-    .. code-block:: ini
-
-        channels =
-            "#channel"
-            "#logs"
-            &rare_prefix_channel
-            "#private password"
-
-    .. important::
-
-        If you edit the config file manually, make sure to wrap each line
-        starting with a ``#`` in double quotes, as shown in the example above.
-        An unquoted ``#`` denotes a comment, which will be ignored by Sopel's
-        configuration parser.
+        bind_host = 10.0.0.1
 
     """
 
-    client_cert_file = FilenameAttribute('client_cert_file')
-    """Filesystem path to a certificate file for CertFP.
-
-    This is expected to be a ``.pem`` file containing both the certificate and
-    private key. Most networks that support CertFP will give instructions for
-    generating this, typically using OpenSSL.
-
-    Some networks may refer to this authentication method as SASL EXTERNAL.
-
-    .. versionadded:: 8.0
-    """
-
-    commands_on_connect = ListAttribute('commands_on_connect')
-    """A list of commands to send upon successful connection to the IRC server.
-
-    Each line is a message that will be sent to the server once connected,
-    in the order they are defined:
-
-    .. code-block:: ini
-
-        commands_on_connect =
-            PRIVMSG Q@CServe.quakenet.org :AUTH my_username MyPassword,@#$%!
-            PRIVMSG MyOwner :I'm here!
-
-    ``$nickname`` can be used in a command as a placeholder, and will be
-    replaced with the bot's :attr:`nick`. For example, if the bot's nick is
-    ``Sopel``, ``MODE $nickname +Xxw`` will be expanded to ``MODE Sopel +Xxw``.
-
-    .. versionadded:: 7.0
-    """
-
-    db_driver = ValidatedAttribute('db_driver')
-    """The driver to use for connecting to the database.
-
-    This is optional, but can be specified if user wants to use a different
-    driver than the default for the chosen :attr:`db_type`.
-
-    .. seealso::
-
-        Refer to :ref:`SQLAlchemy's documentation <engines_toplevel>` for more
-        information.
-
-    """
-
-    db_filename = ValidatedAttribute('db_filename')
-    """The filename for Sopel's database.
-
-    Used only for SQLite. Ignored for all other :attr:`db_type` values.
-    """
-
-    db_host = ValidatedAttribute('db_host')
-    """The host for Sopel's database.
-
-    Ignored when using SQLite.
-    """
-
-    db_name = ValidatedAttribute('db_name')
-    """The name of Sopel's database.
-
-    Ignored when using SQLite.
-    """
-
-    db_pass = SecretAttribute('db_pass')
-    """The password for Sopel's database.
-
-    Ignored when using SQLite.
-    """
-
-    db_port = ValidatedAttribute('db_port')
-    """The port for Sopel's database.
-
-    Ignored when using SQLite.
-    """
-
-    db_type = ChoiceAttribute('db_type', choices=[
-        'sqlite', 'mysql', 'postgres', 'mssql', 'oracle', 'firebird', 'sybase'], default='sqlite')
-    """The type of database Sopel should connect to.
-
-    :default: ``sqlite`` (part of Python's standard library)
-
-    The full list of values Sopel recognizes is:
-
-    * ``firebird``
-    * ``mssql``
-    * ``mysql``
-    * ``oracle``
-    * ``postgres``
-    * ``sqlite``
-    * ``sybase``
-
-    Here are the additional PyPI packages you may need to install to use one of
-    the most commonly requested alternatives:
-
-    mysql
-      ``pip install mysql-python`` (Python 2)
-
-      ``pip install mysqlclient`` (Python 3)
-
-    postgres
-      ``pip install psycopg2``
-
-    mssql
-      ``pip install pymssql``
-
-    This is equivalent to the default value:
-
-    .. code-block:: ini
-
-        db_type = sqlite
-
-    .. seealso::
-
-        Refer to :ref:`SQLAlchemy's documentation <dialect_toplevel>` for more
-        information about the different dialects it supports.
-
-    .. note::
-
-        Plugins originally written for Sopel 6.x and older *might* not work
-        correctly with ``db_type``\\s other than ``sqlite``.
-
-    """
-
-    db_url = ValidatedAttribute('db_url')
-    """A raw database URL.
-
-    If this option is present, Sopel will ignore **all** other ``db_*``
-    settings and use this option's value only.
-
-    .. note::
-
-        Specifying this option via the ``SOPEL_CORE_DB_URL`` :ref:`environment
-        variable <Overriding individual settings>` may prove especially useful
-        in certain cloud environments, avoiding the need to split a database
-        URI provided by the platform at runtime into its components with a
-        startup script.
-
-    .. versionadded:: 8.0
-    """
-
-    db_user = ValidatedAttribute('db_user')
-    """The user for Sopel's database.
-
-    Ignored when using SQLite.
-    """
-
-    default_time_format = ValidatedAttribute('default_time_format',
-                                             default='%Y-%m-%d - %T%Z')
-    """The default format to use for time in messages.
-
-    :default: ``%Y-%m-%d - %T%Z``
-
-    Used when plugins format times with :func:`sopel.tools.time.format_time`.
-
-    This is equivalent to the default value:
-
-    .. code-block:: ini
-
-        default_time_format = %Y-%m-%d - %T%Z
-
-    .. seealso::
-
-        Time format reference is available in the documentation for Python's
-        :func:`time.strftime` function.
-
-    """
-
-    default_timezone = ValidatedAttribute('default_timezone', default='UTC')
-    """The default timezone to use for time in messages.
-
-    :default: ``UTC``
-
-    .. highlight:: ini
-
-    Used when plugins format times with :func:`sopel.tools.time.format_time`.
-
-    For example, to make Sopel fall back on British time::
-
-        default_timezone = Europe/London
-
-    And this is equivalent to the default value::
-
-        default_timezone = UTC
-
-    """
+    ca_certs = FilenameAttribute('ca_certs')
+from __future__ import annotations
+
+from sqlalchemy import Column, Integer, String, text
+from sqlalchemy.engine import create_engine
+from sqlalchemy.orm import Session, sessionmaker
+
+from sopel.config.types import (
+    COMMAND_DEFAULT_HELP_PREFIX,
+    ListAttribute,
+    ValidatedAttribute,
+)
+
+
+class CoreSection:
+    """The config section used for configuring the bot itself."""
+    name = 'core'
+
+    def configure(self, settings):
+        """Ask the user for values for all core settings."""
+        # TODO some validation, like for port number
+        settings.input(
+            "What server would you like to connect to",
+            'host',
+            'irc.libera.chat')
+        settings.input(
+            "What port?",
+            'port',
+            '6697')
+        settings.input(
+            "Would you like to use SSL/TLS (recommended)?",
+            'use_ssl',
+            'True')
+        settings.input(
+            "Would you like to verify SSL/TLS certificates?",
+            'verify_ssl',
+            'True')
+        settings.input(
+            "Would you like to put the bot in nickserv's hostmask "
+            "and account-notify mode?",
+            'auth_method',
+            'nickserv')
+        settings.input_list(
+            "Would you like to connect with SASL? (Yes/No)",
+            'sasl',
+            'No',
+            ['Yes', 'No'],
+            'No')
+        if settings.sasl == 'Yes':
+            settings.input("Username for the account you want to use SASL with",
+                           'sasl_username',
+                           'username')
+            settings.input("Password for the account you want to use SASL with",
+                           'sasl_password',
+                           'password')
+        settings.input(
+            "If you want to use a CA file or directory for SSL/TLS verification, "
+            "enter the path here (leave blank for system default)",
+            'ca_certs',
+            '')
+        settings.input(
+            "Would you like to use a client cert file for SSL/TLS client "
+            "authentication? (leave blank for no)",
+            'client_cert_file',
+            '')
+        settings.input(
+            "Would you like to use a client cert key file for SSL/TLS client "
+            "authentication? (leave blank for no)",
+            'client_cert_key',
+            '')
+        settings.input(
+            "What nickname would you like to use?",
+            'nick',
+            'Sopel')
+        settings.input(
+            "Alternative nicknames, separated by commas",
+            'nick_alt',
+            'Sopel_,Sopel__')
+        settings.input(
+            "What name would you like the bot to use?",
+            'name',
+            'Sopel IRC Bot')
+        settings.input(
+            "What user mode would you like the bot to receive on connection?",
+            'user_mode',
+            '+B')
+        settings.input(
+            "Would you like the bot to send WHOX commands to server? "
+            "(necessary to get account names on some networks, but may slow down "
+            "the bot a bit on connection)",
+            'whox',
+            'True')
+        settings.input(
+            "Would you like the bot to join a channel on connection?",
+            'channels',
+            '#sopel')
+        settings.input(
+            "Would you like to set a prefix for the bot's commands?",
+            'prefix',
+            '\.')
+        settings.input(
+            "Would you like the bot to watch for services and join channels?",
+            'auto_rejoin',
+            'True')
+        settings.input(
+            "Would you like the bot to reconnect when disconnected?",
+            'auto_reconnect',
+            'True')
+        settings.input(
+            "If you want the bot to stay in channels where it's been kicked, "
+            "set this to true.",
+            'auto_rejoin_on_kick',
+            'True')
+        settings.input(
+            "Would you like the bot to automatically reconnect if the connection "
+            "cannot be established successfully?",
+            'retry_connect',
+            'False')
+        settings.input(
+            "If you turned on auto_reconnect, how many seconds between retries?",
+            'reconnect_wait',
+            '20')
+        settings.input(
+            "Would you like the bot to connect with IPv6 (where possible)?",
+            'use_ipv6',
+            'True')
+        settings.input(
+            "Would you like to create a database file for the bot?",
+            'db_filename',
+            'sopel.db')
+        settings.input(
+            "Would you like to use a specific encoding? (empty is utf-8)",
+            'core.encoding',
+            '')
+        settings.input(
+            "Would you like the bot to send PING commands to the server?",
+            'ping_interval',
+            '5')
+        settings.input(
+            "Would you like the bot to require a server PONG response within a "
+            "certain time? (0 = no timeout)",
+            'timeout',
+            '120')
+        settings.input(
+            "Would you like the bot to process data from the server "
+            "asynchronously? (This is useful for bots in busy channels)",
+            'async',
+            'True')
+        settings.input(
+            "Do you want to enable Sopel's HTTP server?",
+            'http_server',
+            'False')
+        settings.input(
+            "What port do you want Sopel's HTTP server to run on?",
+            'http_port',
+            '8080')
+        settings.input(
+            "Do you want to enable Sopel's HTTP server API?",
+            'http_api',
+            'False')
+        settings.input(
+            "Do you want to enable Sopel's HTTP server API authentication?",
+            'http_api_auth',
+            'True')
+        settings.input(
+            "What host do you want Sopel's HTTP server to run on?",
+            'http_host',
+            '127.0.0.1')
 
     enable = ListAttribute('enable')
     """A list of the only plugins you want to enable.

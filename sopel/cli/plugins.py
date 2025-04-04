@@ -1,9 +1,10 @@
-"""Sopel Plugins Command Line Interface (CLI): ``sopel-plugins``"""
 from __future__ import annotations
 
 import argparse
 import inspect
 import operator
+
+from sqlalchemy import text
 
 from sopel import config, plugins, tools
 from . import utils
@@ -230,7 +231,68 @@ def handle_list(options):
                     # keep it red for disabled plugins
                     description['name'] = utils.red(name)
                 description['status'] = utils.red(error_status)
+from __future__ import absolute_import, division, print_function, unicode_literals
 
+import os
+import re
+import sys
+
+from sqlalchemy import text
+
+from sopel import plugins, tools
+from sopel.cli import utils
+
+ERR_CODE = 1
+
+
+def handle_list(options):
+    """List Sopel plugins.
+
+    :param options: parsed arguments
+    :type options: :class:`argparse.Namespace`
+    :return: 0 if everything went fine
+    """
+    name_only = options.name_only
+    show_all = options.all
+    settings = utils.load_settings(options)
+    usable_plugins = plugins.get_usable_plugins(settings)
+
+    # get plugin descriptions
+    plugin_descriptions = []
+    for name, (plugin, is_enabled) in usable_plugins.items():
+        try:
+            plugin.load()
+            description = plugin.get_meta_description()
+        except Exception as error:
+            meta_label = plugin.get_meta_description().get('label') or '(error)'
+            error_label = ('%s' % error) or 'unknown loading exception'
+            label = '%s (error: %s)' % (meta_label, error_label)
+            error_status = 'error'
+            description = {
+                'label': label,
+                'status': error_status,
+            }
+
+        description.update({
+            'name': name,
+            'status': description.get('status') or (
+                'enabled' if is_enabled else 'disabled'),
+        })
+        plugin_descriptions.append(description)
+
+    # filter out disabled plugins when needed
+    if not show_all:
+        plugin_descriptions = [
+            description
+            for description in plugin_descriptions
+            if description['status'] == 'enabled'
+        ]
+
+    # sort by name
+    plugin_descriptions.sort(key=lambda description: description['name'])
+
+    # display
+    for description in plugin_descriptions:
         template = '{name}/{type} {label} ({source}) [{status}]'
         if name_only:
             template = '{name}'

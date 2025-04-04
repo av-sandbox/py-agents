@@ -1,11 +1,3 @@
-"""
-Sopel - An IRC Bot
-Copyright 2008, Sean B. Palmer, inamidst.com
-Copyright © 2012-2014, Elad Alfassa <elad@fedoraproject.org>
-Licensed under the Eiffel Forum License 2.
-
-https://sopel.chat
-"""
 from __future__ import annotations
 
 import argparse

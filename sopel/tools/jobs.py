@@ -1,4 +1,4 @@
-"""Sopel's Job Scheduler: internal tool for job management.
+Sopel's Job Scheduler: internal tool for job management.
 
 .. important::
 

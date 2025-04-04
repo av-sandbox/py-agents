@@ -1,38 +1,3 @@
-"""Identifier tools to represent IRC names (nick or channel).
-
-Nick and channel are defined by their names, which are "identifiers": their
-names are used to differentiate users from each others, channels from each
-others. To ensure that two channels or two users are the same, their
-identifiers must be processed to be compared properly. This process depends on
-which RFC and how that RFC is implemented by the server: IRC being an old
-protocol, different RFCs have differents version of that process:
-
-* :rfc:`RFC 1459 § 2.2<1459#section-2.2>`: ASCII characters, and ``[]\\`` are
-  mapped to ``{}|``
-* :rfc:`RFC 2812 § 2.2<2812#section-2.2>`: same as in the previous RFC, adding
-  ``~`` mapped to ``^``
-
-Then when ISUPPORT was added, the `CASEMAPPING parameter`__ was defined so the
-server can say which process to apply:
-
-* ``ascii``: only ``[A-Z]`` must be mapped to ``[a-z]`` (implemented by
-  :func:`ascii_lower`)
-* ``rfc1459``: follow :rfc:`2812`; because of how it was implemented in most
-  server (implemented by :func:`rfc1459_lower`)
-* A strict version of :rfc:`1459` also exist but it is not recommended
-  (implemented by :func:`rfc1459_strict_lower`)
-
-As a result, the :class:`Identifier` class requires a casemapping function,
-which should be provided by the :class:`bot<sopel.bot.Sopel>`.
-
-.. seealso::
-
-    The bot's :class:`make_identifier<sopel.bot.Sopel.make_identifier>` method
-    should be used to instantiate an :class:`Identifier` to honor the
-    ``CASEMAPPING`` parameter.
-
-.. __: https://modern.ircdocs.horse/index.html#casemapping-parameter
-"""
 from __future__ import annotations
 
 import string
@@ -231,6 +196,34 @@ class Identifier(str):
 
     def __le__(self, other):
         if isinstance(other, str):
+            other = self.casemapping(other)
+        return str.__le__(self._lowered, other)
+
+    def __gt__(self, other):
+        if isinstance(other, str):
+            other = self.casemapping(other)
+        return str.__gt__(self._lowered, other)
+
+    def __ge__(self, other):
+        if isinstance(other, str):
+            other = self.casemapping(other)
+        return str.__ge__(self._lowered, other)
+
+    def __eq__(self, other):
+        if isinstance(other, str):
+            other = self.casemapping(other)
+        return str.__eq__(self._lowered, other)
+
+    def __ne__(self, other):
+        return not (self == other)
+
+    def is_nick(self) -> bool:
+        """Check if the Identifier is a nickname (i.e. not a channel)."""
+        return self and self[0] not in self.chantypes
+
+    def is_channel(self) -> bool:
+        """Check if the Identifier is a channel name."""
+        return self and self[0] in self.chantypes
             other = self.casemapping(other)
         return str.__le__(self._lowered, other)
 

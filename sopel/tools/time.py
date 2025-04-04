@@ -1,4 +1,3 @@
-"""Tools for getting and displaying the time."""
 from __future__ import annotations
 
 import datetime
@@ -231,7 +230,6 @@ def seconds_to_split(seconds):
     days, seconds_left = divmod(seconds_left, DAYS)
     hours, seconds_left = divmod(seconds_left, HOURS)
     minutes, seconds_left = divmod(seconds_left, MINUTES)
-
     return years, months, days, hours, minutes, seconds_left
 
 

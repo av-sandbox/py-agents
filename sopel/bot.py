@@ -1,10 +1,3 @@
-# Copyright 2008, Sean B. Palmer, inamidst.com
-# Copyright © 2012, Elad Alfassa <elad@fedoraproject.org>
-# Copyright 2012-2015, Elsie Powell, http://embolalia.com
-# Copyright 2019, Florian Strzelecki <florian.strzelecki@gmail.com>
-#
-# Licensed under the Eiffel Forum License 2.
-
 from __future__ import annotations
 
 from ast import literal_eval
@@ -926,7 +919,7 @@ class Sopel(irc.AbstractBot):
         scheduler: plugin_jobs.Scheduler,
         job: tools_jobs.Job,
         exc: BaseException,
-    ):
+from sqlalchemy import text
         """Called when a job from the Job Scheduler fails.
 
         :param scheduler: the job scheduler responsible for the errored ``job``
@@ -1134,51 +1127,51 @@ class Sopel(irc.AbstractBot):
             pass
 
     def search_url_callbacks(self, url):
-        """Yield callbacks whose regex pattern matches the ``url``.
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import Connection, Engine
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.pool import NullPool
 
-        :param str url: URL found in a trigger
-        :return: yield 2-value tuples of ``(callback, match)``
+"""Yield callbacks whose regex pattern matches the ``url``.
 
-        For each pattern that matches the ``url`` parameter, it yields a
-        2-value tuple of ``(callable, match)`` for that pattern.
+:param str url: URL found in a trigger
+:return: yield 2-value tuples of ``(callback, match)``
 
-        The ``callable`` is the one registered with
-        :meth:`register_url_callback`, and the ``match`` is the result of
-        the regex pattern's ``search`` method.
+For each pattern that matches the ``url`` parameter, it yields a
+2-value tuple of ``(callable, match)`` for that pattern.
 
-        .. versionadded:: 7.0
+The ``callable`` is the one registered with
+:meth:`register_url_callback`, and the ``match`` is the result of
+the regex pattern's ``search`` method.
 
-        .. versionchanged:: 8.0
+.. versionadded:: 7.0
 
-            Searches for registered callbacks in an internal property instead
-            of ``bot.memory['url_callbacks']``.
+.. versionchanged:: 8.0
 
-        .. deprecated:: 8.0
+    Searches for registered callbacks in an internal property instead
+    of ``bot.memory['url_callbacks']``.
 
-            Made obsolete by fixes to the behavior of
-            :func:`sopel.plugin.url`. Will be removed in Sopel 9.
+.. deprecated:: 8.0
 
-        .. seealso::
+    Made obsolete by fixes to the behavior of
+    :func:`sopel.plugin.url`. Will be removed in Sopel 9.
 
-            The Python documentation for the `re.search`__ function and
-            the `match object`__.
+.. seealso::
 
-        .. __: https://docs.python.org/3.7/library/re.html#re.search
-        .. __: https://docs.python.org/3.7/library/re.html#match-objects
+    The Python documentation for the `re.search`__ function and
+    the `match object`__.
 
-        """
-        for regex, function in self._url_callbacks.items():
-            match = regex.search(url)
-            if match:
-                yield function, match
+.. __: https://docs.python.org/3.7/library/re.html#re.search
+.. __: https://docs.python.org/3.7/library/re.html#match-objects
 
-    def restart(self, message: str) -> None:
-        """Disconnect from IRC and restart the bot.
+"""
+for regex, function in self._url_callbacks.items():
+    match = regex.search(url)
+    if match:
+        yield function, match
 
-        :param str message: QUIT message to send (e.g. "Be right back!")
-        """
-        self.wantsrestart = True
-        self.quit(message)
+def restart(self, message: str) -> None:
 
 
 class SopelWrapper:

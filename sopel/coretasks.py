@@ -1,25 +1,3 @@
-"""Core Sopel plugin that handles IRC protocol functions.
-
-This plugin allows the bot to run without user-facing functionality:
-
-* it handles client capability negotiation
-* it handles client auth (both nick auth and server auth)
-* it handles connection registration (RPL_WELCOME, RPL_LUSERCLIENT), dealing
-  with error cases such as nick already in use
-* it tracks known channels & users (join, quit, nick change and other events)
-* it manages blocked (ignored) users
-
-This is written as a plugin to make it easier to extend to support more
-responses to standard IRC codes without having to shove them all into the
-dispatch function in :class:`sopel.bot.Sopel` and making it easier to maintain.
-"""
-# Copyright 2008-2011, Sean B. Palmer (inamidst.com) and Michael Yanovich
-# (yanovich.net)
-# Copyright © 2012, Elad Alfassa <elad@fedoraproject.org>
-# Copyright 2012-2015, Elsie Powell embolalia.com
-# Copyright 2019, Florian Strzelecki <florian.strzelecki@gmail.com>
-#
-# Licensed under the Eiffel Forum License 2.
 from __future__ import annotations
 
 import base64
@@ -456,6 +434,364 @@ def enable_service_auth(bot, trigger):
 @plugin.event(events.ERR_NOCHANMODES)
 @plugin.priority('medium')
 def retry_join(bot, trigger):
+from __future__ import unicode_literals, absolute_import, print_function, division
+
+import re
+import time
+import logging
+import copy
+
+from sopel import plugin, events
+from sopel.tools import target
+from sopel.irc.utils import MODE_PREFIX_PRIVILEGES
+
+
+LOGGER = logging.getLogger(__name__)
+
+
+@plugin.rule('.*')
+@plugin.event('JOIN')
+@plugin.thread(False)
+@plugin.unblockable
+@plugin.priority('medium')
+def join_send_who(bot, trigger):
+    """Send WHO command to get user privileges on JOIN."""
+    channel = trigger.sender
+    nick = trigger.nick
+    if nick == bot.nick:
+        # It's Sopel itself joining the channel
+        LOGGER.info('Joined %s', channel)
+        bot.sending.clear_queue(channel)
+        bot.write(('WHO', channel))
+        if channel not in bot.channels:
+            bot.channels[channel] = target.Channel(
+                channel,
+                identifier_factory=bot.make_identifier,
+            )
+    elif channel not in bot.channels:
+        # Someone else joining a channel Sopel is not in
+        # This should never happen, but just in case...
+        bot.channels[channel] = target.Channel(
+            channel,
+            identifier_factory=bot.make_identifier,
+        )
+        bot.write(('WHO', channel))
+    else:
+        # Someone else joining a channel Sopel is in
+        channel_obj = bot.channels[channel]
+        user = bot.users.get(nick)
+        if user is None:
+            user = target.User(
+                nick,
+                trigger.user,
+                trigger.host)
+            bot.users[nick] = user
+        channel_obj.add_user(user)
+
+
+def _send_who(bot, channel):
+    """Send a WHO command for the given channel."""
+    if channel in bot.who_reqs:
+        bot.who_reqs[channel] += 1
+    else:
+        bot.who_reqs[channel] = 1
+    LOGGER.info("Sending WHO for %s", channel)
+    bot.write(['WHO', channel])
+
+
+@plugin.rule('.*')
+@plugin.event('PART')
+@plugin.thread(False)
+@plugin.unblockable
+@plugin.priority('medium')
+def part_handle(bot, trigger):
+    """Handle channel PART messages."""
+    nick = trigger.nick
+    channel = trigger.sender
+    # If it's Sopel, remove the channel from memory
+    if nick == bot.nick:
+        LOGGER.info('Left %s', channel)
+        bot.sending.clear_queue(channel)
+        for user in bot.channels[channel].users:
+            bot.channels[channel].remove_user(user)
+        del bot.channels[channel]
+    # If it's not, remove the user from memory
+    else:
+        bot.channels[channel].remove_user(bot.users[nick])
+
+
+@plugin.rule('.*')
+@plugin.event('KICK')
+@plugin.thread(False)
+@plugin.unblockable
+@plugin.priority('medium')
+def kick_handle(bot, trigger):
+    """Handle channel KICK messages."""
+    nick = bot.make_identifier(trigger.args[1])
+    channel = trigger.sender
+    target_user = bot.users.get(nick)
+    if target_user is None:
+        target_user = target.User(nick)
+    # If it's Sopel, remove the channel from memory
+    if nick == bot.nick:
+        LOGGER.info('Kicked from %s', channel)
+        bot.sending.clear_queue(channel)
+        for user in bot.channels[channel].users:
+            bot.channels[channel].remove_user(user)
+        del bot.channels[channel]
+    # If it's not, remove the user from memory
+    else:
+        bot.channels[channel].remove_user(target_user)
+
+
+@plugin.rule('.*')
+@plugin.event('QUIT')
+@plugin.thread(False)
+@plugin.unblockable
+@plugin.priority('medium')
+def quit_handle(bot, trigger):
+    """Handle channel QUIT messages."""
+    nick = trigger.nick
+    # Remove the user from memory
+    for channel in bot.channels.values():
+        if nick in channel.privileges:
+            channel.remove_user(bot.users[nick])
+
+
+@plugin.rule('.*')
+@plugin.event('CAP')
+@plugin.thread(False)
+@plugin.unblockable
+@plugin.priority('medium')
+def cap_list(bot, trigger):
+    """Handle CAP LIST responses, which can inform us of capabilities."""
+    if trigger.args[1] != 'LS':
+        return
+
+    bot.server_capabilities = trigger.strip().split()
+    LOGGER.info("Server capabilities: %s", bot.server_capabilities)
+
+
+@plugin.rule('(.*)')
+@plugin.event(events.RPL_WHOREPLY)
+@plugin.thread(False)
+@plugin.unblockable
+@plugin.priority('medium')
+def recv_who(bot, trigger):
+    """Process WHO responses from the server.
+
+    :param bot: instance of the bot
+    :param trigger: IRC line received from the server
+    """
+    channel = bot.make_identifier(trigger.args[1])
+    nick = bot.make_identifier(trigger.args[5])
+    user = bot.make_identifier(trigger.args[2])
+    host = trigger.args[3]
+    status = trigger.args[6]
+    realname = trigger.args[7]
+
+    if channel not in bot.channels:
+        bot.channels[channel] = target.Channel(
+            channel,
+            identifier_factory=bot.make_identifier,
+        )
+
+    if nick not in bot.users:
+        bot.users[nick] = target.User(nick, user, host, realname)
+    else:
+        bot.users[nick].user = user
+        bot.users[nick].host = host
+        bot.users[nick].realname = realname
+
+    priv = 0
+    for prefix, value in MODE_PREFIX_PRIVILEGES.items():
+        if prefix in status:
+            priv = priv | value
+
+    bot.channels[channel].add_user(bot.users[nick], privs=priv)
+
+
+@plugin.rule('(.*)')
+@plugin.event(events.RPL_ENDOFWHO)
+@plugin.thread(False)
+@plugin.unblockable
+@plugin.priority('medium')
+def end_who(bot, trigger):
+    """Handle the end of a WHO response.
+
+    :param bot: instance of the bot
+    :param trigger: IRC line received from the server
+    """
+    channel = bot.make_identifier(trigger.args[1])
+    if channel in bot.who_reqs:
+        if bot.who_reqs[channel] > 0:
+            bot.who_reqs[channel] -= 1
+        else:
+            bot.who_reqs.pop(channel, None)
+    if channel in bot.channels:
+        bot.channels[channel].set_mode(True)
+
+
+@plugin.rule('(.*)')
+@plugin.event(events.RPL_BANLIST)
+@plugin.thread(False)
+@plugin.unblockable
+@plugin.priority('medium')
+def banlist(bot, trigger):
+    """Process banlist responses from the server.
+
+    :param bot: instance of the bot
+    :param trigger: IRC line received from the server
+    """
+    channel = bot.make_identifier(trigger.args[1])
+    banmask = trigger.args[2]
+    who_set = trigger.args[3]
+    set_ts = trigger.args[4]
+
+    LOGGER.debug(
+        "Banmask %s set on %s by %s on %s",
+        banmask, channel, who_set, set_ts)
+
+    if channel not in bot.channels:
+        bot.channels[channel] = target.Channel(
+            channel,
+            identifier_factory=bot.make_identifier,
+        )
+
+    banmask = bot.make_identifier(banmask)
+    who_set = bot.make_identifier(who_set)
+    set_ts = int(set_ts)
+    ban = target.Ban(banmask, who_set, set_ts)
+    bot.channels[channel].add_ban(ban)
+
+
+@plugin.rule('(.*)')
+@plugin.event(events.RPL_ENDOFBANLIST)
+@plugin.thread(False)
+@plugin.unblockable
+@plugin.priority('medium')
+def end_banlist(bot, trigger):
+    """Handle the end of a banlist response.
+
+    :param bot: instance of the bot
+    :param trigger: IRC line received from the server
+    """
+    channel = bot.make_identifier(trigger.args[1])
+    if channel in bot.channels:
+        bot.channels[channel].ban_lock = False
+
+
+@plugin.rule('(.*)')
+@plugin.event(events.ERR_NOSUCHCHANNEL)
+@plugin.thread(False)
+@plugin.unblockable
+@plugin.priority('medium')
+def no_such_channel(bot, trigger):
+    """Handle ERR_NOSUCHCHANNEL responses from the server.
+
+    :param bot: instance of the bot
+    :param trigger: IRC line received from the server
+    """
+    channel = bot.make_identifier(trigger.args[1])
+    LOGGER.info("Server indicates channel %s doesn't exist.", channel)
+    if channel in bot.channels:
+        bot.channels.pop(channel, None)
+
+
+@plugin.rule('(.*)')
+@plugin.event(events.RPL_TOPIC)
+@plugin.thread(False)
+@plugin.unblockable
+@plugin.priority('medium')
+def recv_topic(bot, trigger):
+    """Handle a response to a topic request.
+
+    :param bot: instance of the bot
+    :param trigger: IRC line received from the server
+    """
+    channel = bot.make_identifier(trigger.args[1])
+    topic = trigger.args[2]
+
+    if channel not in bot.channels:
+        bot.channels[channel] = target.Channel(
+            channel,
+            identifier_factory=bot.make_identifier,
+        )
+
+    bot.channels[channel].topic = topic
+
+
+@plugin.rule('(.*)')
+@plugin.event('TOPIC')
+@plugin.thread(False)
+@plugin.unblockable
+@plugin.priority('medium')
+def topic_change(bot, trigger):
+    """Handle a topic change.
+
+    :param bot: instance of the bot
+    :param trigger: IRC line received from the server
+    """
+    channel = trigger.sender
+    topic = trigger.args[1]
+
+    if channel not in bot.channels:
+        bot.channels[channel] = target.Channel(
+            channel,
+            identifier_factory=bot.make_identifier,
+        )
+
+    bot.channels[channel].topic = topic
+
+
+@plugin.rule('(.*)')
+@plugin.event(events.RPL_CHANNELMODEIS)
+@plugin.thread(False)
+@plugin.unblockable
+@plugin.priority('medium')
+def channel_mode_is(bot, trigger):
+    """Handle a response to a channel mode request.
+
+    :param bot: instance of the bot
+    :param trigger: IRC line received from the server
+    """
+    channel = bot.make_identifier(trigger.args[1])
+    if channel not in bot.channels:
+        bot.channels[channel] = target.Channel(
+            channel,
+            identifier_factory=bot.make_identifier,
+        )
+
+
+@plugin.rule('(.*)')
+@plugin.event(events.RPL_CREATIONTIME)
+@plugin.thread(False)
+@plugin.unblockable
+@plugin.priority('medium')
+def channel_creation_time(bot, trigger):
+    """Handle a response to a channel creation time request.
+
+    :param bot: instance of the bot
+    :param trigger: IRC line received from the server
+    """
+    channel = bot.make_identifier(trigger.args[1])
+    timestamp = trigger.args[2]
+
+    if channel not in bot.channels:
+        bot.channels[channel] = target.Channel(
+            channel,
+            identifier_factory=bot.make_identifier,
+        )
+
+    bot.channels[channel].creation_timestamp = int(timestamp)
+
+
+@plugin.rule('.*')
+@plugin.event(events.ERR_NEEDREGGEDNICK)
+@plugin.thread(False)
+@plugin.unblockable
+@plugin.priority('medium')
+def need_regged_nick(bot, trigger):
     """Give NickServ enough time to identify on a +R channel.
 
     Give NickServ enough time to identify, and retry rejoining an
@@ -551,144 +887,6 @@ def handle_names(bot, trigger):
 def track_modes(bot, trigger):
     """Track changes from received MODE commands."""
     _parse_modes(bot, trigger.args)
-
-
-@plugin.priority('high')
-@plugin.event(events.RPL_CHANNELMODEIS)
-@plugin.thread(False)
-@plugin.unblockable
-def initial_modes(bot, trigger):
-    """Populate channel modes from response to MODE request sent after JOIN."""
-    _parse_modes(bot, trigger.args[1:], clear=True)
-
-
-def _parse_modes(bot, args, clear=False):
-    """Parse MODE message and apply changes to internal state.
-
-    Sopel, by default, doesn't know how to parse other types than A, B, C, and
-    D, and only a preset of privileges.
-
-    .. seealso::
-
-        Parsing mode messages can be tricky and complicated to understand. In
-        any case it is better to read the IRC specifications about channel
-        modes at https://modern.ircdocs.horse/#channel-mode
-
-    """
-    channel_name = bot.make_identifier(args[0])
-    if channel_name.is_nick():
-        # We don't do anything with user modes
-        LOGGER.debug("Ignoring user modes: %r", args)
-        return
-
-    channel = bot.channels[channel_name]
-
-    # Unreal 3 sometimes sends an extraneous trailing space. If we're short an
-    # arg, we'll find out later.
-    if args[-1] == "":
-        args.pop()
-    # If any args are still empty, that's something we may not be prepared for,
-    # but let's continue anyway hoping they're trailing / not important.
-    if len(args) < 2 or not all(args):
-        LOGGER.debug(
-            "The server sent a possibly malformed MODE message: %r", args)
-
-    # parse the modestring with the parameters
-    modeinfo = bot.modeparser.parse(args[1], tuple(args[2:]))
-
-    # set, unset, or update channel's modes based on the mode type
-    # modeinfo.modes contains only the valid parsed modes
-    # coretask can handle type A, B, C, and D only
-    modes = {} if clear else copy.deepcopy(channel.modes)
-    for letter, mode, is_added, param in modeinfo.modes:
-        if letter == 'A':
-            # type A is a multi-value mode and always requires a parameter
-            if mode not in modes:
-                modes[mode] = set()
-            if is_added:
-                modes[mode].add(param)
-            elif param in modes[mode]:
-                modes[mode].remove(param)
-                # remove mode if empty
-                if not modes[mode]:
-                    modes.pop(mode)
-        elif letter == 'B':
-            # type B is a single-value mode and always requires a parameter
-            if is_added:
-                modes[mode] = param
-            elif mode in modes:
-                modes.pop(mode)
-        elif letter == 'C':
-            # type C is a single-value mode and requires a parameter when added
-            if is_added:
-                modes[mode] = param
-            elif mode in modes:
-                modes.pop(mode)
-        elif letter == 'D':
-            # type D is a flag (True or False) and doesn't have a parameter
-            if is_added:
-                modes[mode] = True
-            elif mode in modes:
-                modes.pop(mode)
-
-    # atomic change of channel's modes
-    channel.modes = modes
-
-    # update user privileges in channel
-    # modeinfo.privileges contains only the valid parsed privileges
-    for privilege, is_added, param in modeinfo.privileges:
-        # User privs modes, always have a param
-        nick = bot.make_identifier(param)
-        priv = channel.privileges.get(nick, 0)
-        value = MODE_PREFIX_PRIVILEGES[privilege]
-        if is_added:
-            priv = priv | value
-        else:
-            priv = priv & ~value
-        channel.privileges[nick] = priv
-
-    # log ignored modes (modes Sopel doesn't know how to handle)
-    if modeinfo.ignored_modes:
-        LOGGER.warning(
-            "Unknown MODE message, sending WHO. Message was: %r",
-            args,
-        )
-        # send a WHO message to ensure we didn't miss anything
-        _send_who(bot, channel_name)
-
-    # log leftover parameters (too many arguments)
-    if modeinfo.leftover_params:
-        LOGGER.warning(
-            "Too many arguments received for MODE: args=%r chanmodes=%r",
-            args,
-            bot.modeparser.chanmodes,
-        )
-
-    LOGGER.info("Updated mode for channel: %s", channel.name)
-    LOGGER.debug("Channel %r mode: %r", str(channel.name), channel.modes)
-
-
-@plugin.event('NICK')
-@plugin.thread(False)
-@plugin.unblockable
-@plugin.priority('medium')
-def track_nicks(bot, trigger):
-    """Track nickname changes and maintain our chanops list accordingly."""
-    old = trigger.nick
-    new = bot.make_identifier(trigger)
-
-    # Give debug message, and PM the owner, if the bot's own nick changes.
-    if old == bot.nick and new != bot.nick:
-        privmsg = (
-            "Hi, I'm your bot, %s. Something has made my nick change. This "
-            "can cause some problems for me, and make me do weird things. "
-            "You'll probably want to restart me, and figure out what made "
-            "that happen so you can stop it happening again. (Usually, it "
-            "means you tried to give me a nick that's protected by NickServ.)"
-        ) % bot.nick
-        debug_msg = (
-            "Nick changed by server. This can cause unexpected behavior. "
-            "Please restart the bot."
         )
         LOGGER.critical(debug_msg)
         bot.say(privmsg, bot.config.core.owner)
@@ -1389,91 +1587,75 @@ def _record_who(bot, channel, user, host, nick, account=None, away=None, modes=N
             usr.user = user
     if account == '0':
         usr.account = None
-    else:
-        usr.account = account
-    if away is not None:
-        usr.away = away
-    priv = 0
-    if modes:
-        mapping = {
-            "+": plugin.VOICE,
-            "%": plugin.HALFOP,
-            "@": plugin.OP,
-            "&": plugin.ADMIN,
-            "~": plugin.OWNER,
-            "!": plugin.OPER,
-        }
-        for c in modes:
-            priv = priv | mapping[c]
-    if channel not in bot.channels:
+# -*- coding: utf-8 -*-
+# Copyright 2008, Sean B. Palmer, inamidst.com
+# Copyright © 2012, Elad Alfassa <elad@fedoraproject.org>
+# Copyright 2012-2015, Elsie Powell, embolalia.com
+# Copyright 2019, Florian Strzelecki <florian.strzelecki@gmail.com>
+#
+# Licensed under the Eiffel Forum License 2.
+
+from __future__ import absolute_import, division, print_function, unicode_literals
+
+import functools
+import logging
+import re
+import threading
+import time
+
+from sqlalchemy import Column, String, text
         bot.channels[channel] = target.Channel(
             channel,
             identifier_factory=bot.make_identifier,
         )
+    user = bot.users.get(trigger.nick)
+    if user is None:
+        user = target.User(
+            trigger.nick, trigger.user, trigger.host)
+        bot.users[trigger.nick] = user
 
-    bot.channels[channel].add_user(usr, privs=priv)
+    if trigger.account:
+        user.account = trigger.account
+    else:
+        user.account = None
+
+    if trigger.sender not in bot.channels:
+        bot.channels[trigger.sender] = target.Channel(
+            trigger.sender,
+            identifier_factory=bot.make_identifier,
+        )
+
+    bot.channels[trigger.sender].add_user(user)
+    LOGGER.info("User %s joined channel %s", trigger.nick, trigger.sender)
 
 
-@plugin.event(events.RPL_WHOREPLY)
-@plugin.thread(False)
-@plugin.unblockable
-@plugin.priority('medium')
-def recv_who(bot, trigger):
-    """Track ``WHO`` responses when ``WHOX`` is not enabled."""
-    channel, user, host, _, nick, status = trigger.args[1:7]
-    away = 'G' in status
-    modes = ''.join([c for c in status if c in '~&@%+!'])
-    _record_who(bot, channel, user, host, nick, away=away, modes=modes)
-
-
-@plugin.event('AWAY')
-@plugin.thread(False)
-@plugin.unblockable
-@plugin.priority('medium')
-def track_notify(bot, trigger):
-    """Track users going away or coming back."""
+@plugin.event('PART')
     if trigger.nick not in bot.users:
         bot.users[trigger.nick] = target.User(
             trigger.nick, trigger.user, trigger.host)
     user = bot.users[trigger.nick]
-    user.away = bool(trigger.args)
-    state_change = 'went away' if user.away else 'came back'
-    LOGGER.info("User %s: %s", state_change, trigger.nick)
+    if trigger.args[0] == '*':
+        user.account = None
+    else:
+        user.account = trigger.args[0]
+    LOGGER.info("User %s changed account to %s",
+                trigger.nick, trigger.args[0])
 
 
-@plugin.event('TOPIC')
-@plugin.event(events.RPL_TOPIC)
+@plugin.event(events.RPL_WHOSPCRPL)
 @plugin.thread(False)
 @plugin.unblockable
 @plugin.priority('medium')
-def track_topic(bot, trigger):
-    """Track channels' topics."""
-    if trigger.event != 'TOPIC':
-        channel = trigger.args[1]
-    else:
-        channel = trigger.args[0]
-    if channel not in bot.channels:
+def recv_whox(bot, trigger):
+    """Track WHO replies when WHOX is enabled."""
+    if len(trigger.args) < 2 or trigger.args[1] not in bot.memory['whox_commands']:
+        # Ignored, some command other than one we sent
+        if len(trigger.args) >= 2:
+            LOGGER.debug("Ignoring WHOX for %s: not a command we sent", trigger.args[1])
+        else:
+            LOGGER.debug("Ignoring WHOX: no ID given")
         return
-    bot.channels[channel].topic = trigger.args[-1]
-    LOGGER.info("Channel's topic updated: %s", channel)
+    if len(trigger.args) < 8:
+        return
 
-
-@plugin.rule(r'(?u).*(.+://\S+).*')
-def handle_url_callbacks(bot, trigger):
-    """Dispatch callbacks on URLs
-
-    For each URL found in the trigger, trigger the URL callback registered by
-    the ``@url`` decorator.
-    """
-    # find URLs in the trigger
-    for url in trigger.urls:
-        # find callbacks for said URL
-        for function, match in bot.search_url_callbacks(url):
-            # trigger callback defined by the `@url` decorator
-            if hasattr(function, 'url_regex'):
-                # bake the `match` argument in before passing the callback on
-                @functools.wraps(function)
-                def decorated(bot, trigger):
-                    return function(bot, trigger, match=match)
-
-                bot.call(decorated, bot, trigger)
+    # The WHOX spec says that

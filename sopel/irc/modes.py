@@ -1,28 +1,3 @@
-"""Mode management for IRC channels.
-
-The :class:`ModeParser` class is used internally by the bot to parse ``MODE``
-messages for channels. User modes are not parsed (yet), as the bot doesn't
-manage them.
-
-The goal of the parser is to return a :class:`ModeMessage` containing the
-actions represented by the raw message:
-
-* channel modes added/removed (including their parameters, if any)
-* privileges added/removed for user(s) in a channel
-
-Errors (ignored modes and unused parameters) are also included, mostly for
-detecting when an IRC server is not conforming to specifications.
-
-This is mostly for internal use only as plugin developers should be more
-interested in :attr:`privileges<sopel.tools.target.Channel.privileges>` rather
-than how Sopel knows about them.
-
-.. seealso::
-
-    https://modern.ircdocs.horse/#mode-message
-
-.. versionadded:: 8.0
-"""
 from __future__ import annotations
 
 import enum

@@ -1,27 +1,3 @@
-""":mod:`sopel.irc` is the core IRC module for Sopel.
-
-This sub-package contains everything that is related to the IRC protocol
-(connection, commands, abstract client, etc.) and that can be used to implement
-the Sopel bot.
-
-In particular, it defines the interface for the
-:class:`IRC backend<sopel.irc.abstract_backends.AbstractIRCBackend>`, and the
-interface for the :class:`bot itself<sopel.irc.AbstractBot>`. This is all
-internal code that isn't supposed to be used directly by a plugin developer,
-who should worry about :class:`sopel.bot.Sopel` only.
-
-.. important::
-
-    When working on core IRC protocol related features, consult protocol
-    documentation at https://www.irchelp.org/protocol/rfc/
-
-"""
-# Copyright 2008, Sean B. Palmer, inamidst.com
-# Copyright 2012, Elsie Powell, http://embolalia.com
-# Copyright © 2012, Elad Alfassa <elad@fedoraproject.org>
-# Copyright 2019, Florian Strzelecki <florian.strzelecki@gmail.com>
-#
-# Licensed under the Eiffel Forum License 2.
 from __future__ import annotations
 
 import abc

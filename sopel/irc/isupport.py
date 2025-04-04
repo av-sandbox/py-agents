@@ -216,6 +216,211 @@ class ISupport:
         return self[name] if name in self else default
 
     def apply(self, **kwargs):
+from collections import OrderedDict
+import itertools
+import re
+from typing import Dict, Optional, Tuple, Union
+
+from sqlalchemy import Column, Integer, String, create_engine, text
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import Session, sessionmaker
+
+Base = declarative_base()
+
+
+class ISupportParameter(Base):
+    """Represents a single parameter of the ISUPPORT feature.
+
+    A parameter can be a simple flag (``True``), a value (``string`` or
+    ``integer``), or a list of values (tuple of ``string`` or ``integer``).
+
+    .. seealso::
+
+        https://modern.ircdocs.horse/#feature-advertisement
+
+    """
+    __tablename__ = 'isupport'
+
+    id = Column(Integer, primary_key=True)
+    key = Column(String(30))
+    value = Column(String(300), nullable=True)
+
+    def __init__(self, key, value=None):
+        self.key = key
+        self.value = value
+
+    @classmethod
+    def from_parameter(cls, parameter):
+        """Parse a parameter from an ISUPPORT message.
+
+        :param str parameter: parameter to parse
+        :return: a new parameter instance
+        :rtype: :class:`ISupportParameter`
+
+        The parameter can be:
+
+        * a simple flag, such as ``EXCEPTS``
+        * a negated flag, such as ``-EXCEPTS``
+        * a parameter with a value, such as ``NICKLEN=30``
+        * a parameter with a list of values, such as ``CMDS=KNOCK,MAP``
+        * a parameter with a list of key-value pairs, such as
+          ``PREFIX=(ov)@+``
+
+        .. note::
+
+            The parameter is case-insensitive, but the key in the result
+            will be in uppercase.
+
+        """
+        key = parameter
+        value = None
+
+        if '=' in parameter:
+            key, value = parameter.split('=', 1)
+
+        key = key.upper()
+
+        if value is not None:
+            # try to parse the value
+            if ',' in value:
+                # comma-separated list
+                value = tuple(value.split(','))
+            elif value.startswith('(') and ')' in value:
+                # list of key-value pairs
+                modes, rest = value[1:].split(')', 1)
+                value = tuple(zip(modes, rest))
+            else:
+                try:
+                    # try to parse as an integer
+                    value = int(value)
+                except ValueError:
+                    # keep as string
+                    pass
+
+        return cls(key, value)
+
+
+class ISupport(dict):
+    """Manage the IRC server's advertised features.
+
+    This class handles the parsing of the ``ISUPPORT`` message (also known as
+    ``005`` numeric) and provides access to the server's features.
+
+    .. seealso::
+
+        https://modern.ircdocs.horse/#feature-advertisement
+
+    """
+    def __init__(self, **kwargs):
+        """Initialize a new instance of :class:`ISupport`.
+
+        :param kwargs: initial parameters
+
+        The initial parameters can be a simple flag (``True``), a value
+        (``string`` or ``integer``), or a list of values (tuple of ``string``
+        or ``integer``).
+
+        .. note::
+
+            The parameters are case-insensitive, but the keys in the result
+            will be in uppercase.
+
+        """
+        self.__isupport = dict(
+            (key.upper(), value)
+            for key, value in kwargs.items()
+        )
+
+    def __contains__(self, key):
+        """Check if a parameter is supported by the server.
+
+        :param str key: parameter name
+        :return: ``True`` if the parameter is supported, ``False`` otherwise
+        :rtype: bool
+
+        .. note::
+
+            The parameter name is case-insensitive.
+
+        """
+        return key.upper() in self.__isupport
+
+    def __getitem__(self, key):
+        """Get the value of a parameter.
+
+        :param str key: parameter name
+        :return: the value of the parameter
+        :rtype: :class:`bool`, :class:`str`, :class:`int`, or :class:`tuple`
+        :raise KeyError: if the parameter is not supported
+
+        .. note::
+
+            The parameter name is case-insensitive.
+
+        """
+        return self.__isupport[key.upper()]
+
+    def __iter__(self):
+        """Iterate over the parameters.
+
+        :return: an iterator over the parameters
+        :rtype: iterator
+
+        """
+        return iter(self.__isupport)
+
+    def __len__(self):
+        """Get the number of parameters.
+
+        :return: the number of parameters
+        :rtype: int
+
+        """
+        return len(self.__isupport)
+
+    def get(self, key, default=None):
+        """Get the value of a parameter.
+
+        :param str key: parameter name
+        :param default: default value if the parameter is not supported
+        :return: the value of the parameter, or the default value
+        :rtype: :class:`bool`, :class:`str`, :class:`int`, or :class:`tuple`
+
+        .. note::
+
+            The parameter name is case-insensitive.
+
+        """
+        return self.__isupport.get(key.upper(), default)
+
+    def items(self):
+        """Get the parameters as a list of (key, value) pairs.
+
+        :return: a list of (key, value) pairs
+        :rtype: list
+
+        """
+        return self.__isupport.items()
+
+    def keys(self):
+        """Get the parameters as a list of keys.
+
+        :return: a list of keys
+        :rtype: list
+
+        """
+        return self.__isupport.keys()
+
+    def values(self):
+        """Get the parameters as a list of values.
+
+        :return: a list of values
+        :rtype: list
+
+        """
+        return self.__isupport.values()
+
+    def apply(self, **kwargs):
         """Build a new instance of :class:`ISupport`.
 
         :return: a new instance, updated with the latest advertised features

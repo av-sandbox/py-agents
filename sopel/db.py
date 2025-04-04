@@ -7,7 +7,7 @@ import os.path
 import traceback
 import typing
 
-from sqlalchemy import Column, create_engine, ForeignKey, Integer, String
+from sqlalchemy import Column, create_engine, ForeignKey, Integer, String, text
 from sqlalchemy.engine.url import make_url, URL
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.ext.declarative import declarative_base
@@ -180,7 +180,7 @@ class SopelDB:
                 raise Exception('Please make sure the following core '
                                 'configuration values are defined: '
                                 'db_user, db_pass, db_host')
-            self.url = URL(drivername=drivername, username=db_user,
+            self.url = URL.create(drivername=drivername, username=db_user,
                            password=db_pass, host=db_host, port=db_port,
                            database=db_name, query=query)
 
@@ -259,7 +259,7 @@ class SopelDB:
         The ``Result`` object returned is a wrapper around a ``Cursor`` object
         as specified by :pep:`249`.
         """
-        return self.engine.execute(*args, **kwargs)
+        from sqlalchemy import text
 
     def get_uri(self):
         """Return a direct URL for the database.

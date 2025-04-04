@@ -1,19 +1,3 @@
-"""Sopel's plugin jobs management.
-
-.. versionadded:: 7.1
-
-.. important::
-
-    This is all fresh and new. Its usage and documentation is for Sopel core
-    development and advanced developers. It is subject to rapid changes
-    between versions without much (or any) warning.
-
-    Do **not** build your plugin based on what is here, you do **not** need to.
-
-"""
-# Copyright 2020, Florian Strzelecki <florian.strzelecki@gmail.com>
-#
-# Licensed under the Eiffel Forum License 2.
 from __future__ import annotations
 
 import itertools

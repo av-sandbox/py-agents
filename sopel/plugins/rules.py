@@ -1,19 +1,3 @@
-"""Sopel's plugin rules management.
-
-.. versionadded:: 7.1
-
-.. important::
-
-    This is all fresh and new. Its usage and documentation is for Sopel core
-    development and advanced developers. It is subject to rapid changes
-    between versions without much (or any) warning.
-
-    Do **not** build your plugin based on what is here, you do **not** need to.
-
-"""
-# Copyright 2020, Florian Strzelecki <florian.strzelecki@gmail.com>
-#
-# Licensed under the Eiffel Forum License 2.
 from __future__ import annotations
 
 import abc
@@ -690,7 +674,7 @@ class AbstractRule(abc.ABC):
 
     @abc.abstractmethod
     def execute(self, bot, trigger):
-        """Execute the triggered rule.
+from __future__ import annotations
 
         :param bot: Sopel wrapper
         :type bot: :class:`sopel.bot.SopelWrapper`
@@ -1380,240 +1364,179 @@ class NickCommand(AbstractNamedRule):
         to create a compiled regex to return.
         """
         name = [self.escape_name(self._name)]
-        aliases = [self.escape_name(alias) for alias in self._aliases]
-        pattern = r'|'.join(name + aliases)
-
-        return _compile_pattern(
-            self.PATTERN_TEMPLATE.format(command=pattern),
-            self._nick,
-            self._nick_aliases)
+from sqlalchemy import text
+import functools
+import inspect
+import re
 
 
-class ActionCommand(AbstractNamedRule):
-    """Action Command rule definition.
+def _compile_pattern(pattern, nick, alias_nicks):
+    """Compile the regex pattern and fill in nickname placeholders.
 
-    An action command rule is a named rule that can be triggered only when the
-    trigger's intent is an ``ACTION``. Like the :class:`Command` rule, it
-    allows command aliases.
-
-    Here is an example with the ``dummy`` action command:
+    :param str pattern: Regex pattern to compile
+    :param str nick: Primary nick for the bot
+    :param list alias_nicks: List of alternative nicks for the bot
+    :return: compiled regex pattern with nicknames in place
+    :rtype: :ref:`re.Pattern <python:re-objects>`
+    """
+    # Not full compression. Just enough to handle most cases.
+    simplified = nick.lower()
 
     .. code-block:: irc
 
-        > user dummy
-        <Bot> You just invoked the action command 'dummy'
-        > user dummy-alias
-        <Bot> You just invoked the action command 'dummy' (as 'dummy-alias')
-
-    Apart from that, it behaves exactly like a :class:`generic rule <Rule>`.
+        <user> hello world
+        <Bot> Hi there!
+        <user> hello sopelunker
+        <Bot> Hi there!
+        <user> but if I say hi world, nothing happens
+        <user> and if I say goodbye world, nothing happens either
     """
-    INTENT_REGEX = re.compile(r'ACTION', re.IGNORECASE)
-    PATTERN_TEMPLATE = r"""
-        ({command})         # Command as group 1.
-        (?:\s+              # Whitespace to end command.
-        (                   # Rest of the line as group 2.
-        (?:(\S+))?          # Parameters 1-4 as groups 3-6.
-        (?:\s+(\S+))?
-        (?:\s+(\S+))?
-        (?:\s+(\S+))?
-        .*                  # Accept anything after the parameters.
-                            # Leave it up to the plugin to parse
-                            # the line.
-        ))?                 # Group 2 must be None, if there are no
-                            # parameters.
-        $                   # EoL, so there are no partial matches.
-    """
+    REGEX_ATTRIBUTE = 'rules'
+    LAZY_ATTRIBUTE = 'rule_lazy_loaders'
 
     @classmethod
     def from_callable(cls, settings, handler):
-        commands = getattr(handler, 'action_commands', [])
-        if not commands:
-            raise RuntimeError('Invalid action command callable: %s' % handler)
+        """Create a Rule from a callable.
 
-        name = commands[0]
-        aliases = commands[1:]
+        :param settings: Sopel's settings
+        :type settings: :class:`sopel.config.Config`
+        :param callable handler: a function or method with rules
+        :return: a rule object
         kwargs = cls.kwargs_from_callable(handler)
         kwargs.update({
-            'name': name,
-            'aliases': aliases,
+            'regexes': regexes,
             'handler': handler,
         })
 
         return cls(**kwargs)
 
-    def __init__(self, name, aliases=None, **kwargs):
-        super().__init__(name, aliases=aliases, **kwargs)
-        self._regexes = (self.get_rule_regex(),)
+    @classmethod
+    def regex_from_callable(cls, settings, handler):
+        """Extract and compile regexes from a callable.
 
     def __str__(self):
-        label = self.get_rule_label()
-        plugin = self.get_plugin_name() or '(no-plugin)'
-        aliases = '|'.join(self._aliases)
+        """Return a string representation of the rule.
 
-        return '<ActionCommand %s.%s [%s]>' % (plugin, label, aliases)
-
-    def get_rule_regex(self):
-        """Make the rule regex for this action command.
-
-        :return: a compiled regex for this action command and its aliases
-
-        The command regex factors in:
-
-        * the rule's name (escaped for regex if needed),
-        * all of its aliases (escaped for regex if needed),
-
-        to create a compiled regex to return.
+        :return: a string representation of the rule
+        :rtype: str
         """
-        name = [self.escape_name(self._name)]
-        aliases = [self.escape_name(alias) for alias in self._aliases]
-        pattern = r'|'.join(name + aliases)
-        pattern = self.PATTERN_TEMPLATE.format(command=pattern)
-        return re.compile(pattern, re.IGNORECASE | re.VERBOSE)
+        plugin = self.get_plugin_name() or '(no-plugin)'
+        label = self.get_rule_label()
+        return '<%s %s.%s>' % (self.__class__.__name__, plugin, label)
+
+    def configure(self, settings):
+        """Configure the rule.
+
+        :param settings: Sopel's settings
+        :type settings: :class:`sopel.config.Config`
+
+        This method is called when the rule is registered to the bot. It can be
+        used to configure the rule based on the bot's settings.
+        """
+        self._nick = settings.core.nick
+        self._nick_aliases = settings.core.alias_nicks
+
+    def match(self, bot, pretrigger):
+        """Check if the rule matches the given bot and pretrigger.
+
+        :param bot: Sopel instance
+        :type bot: :class:`sopel.bot.Sopel`
+        :param pretrigger: incoming message
+        :type pretrigger: :class:`sopel.trigger.PreTrigger`
+        :return: ``True`` if the rule matches, ``False`` otherwise
 
     def match_intent(self, intent):
-        """Tell if ``intent`` is an ``ACTION``.
+        """Check if the rule matches the given intent.
 
-        :param str intent: potential matching intent
-        :return: ``True`` when ``intent`` matches ``ACTION``,
-                 ``False`` otherwise
+        :param str intent: intent to match
+        :return: ``True`` if the rule matches, ``False`` otherwise
         :rtype: bool
+
+        This method checks if the rule matches the given intent. By default,
+        it always returns ``True``.
         """
-        return bool(intent and self.INTENT_REGEX.match(intent))
-
-
-class FindRule(Rule):
-    """Anonymous find rule definition.
-
-    A find rule is like an anonymous rule with a twist: instead of matching
-    only once per IRC line, a find rule will execute for each non-overlapping
-    match for each of its regular expressions.
-
-    For example, to match for each word starting with the letter ``h`` in a line,
-    you can use the pattern ``h\\w+``:
-
-    .. code-block:: irc
-
-        <user> hello here
-        <Bot> Found the word "hello"
-        <Bot> Found the word "here"
-        <user> sopelunker, how are you?
-        <Bot> Found the word "how"
-
-    .. seealso::
-
-        This rule uses :func:`re.finditer`. To know more about how it works,
-        see the official Python documentation.
-
-    """
-    REGEX_ATTRIBUTE = 'find_rules'
-    LAZY_ATTRIBUTE = 'find_rules_lazy_loaders'
+        return True
 
     def parse(self, text):
+        """Parse the given text.
+
+        :param str text: text to parse
+        :return: an iterator of match objects
+        :rtype: iterator
+
+        This method parses the given text and returns an iterator of match
+        objects. By default, it returns at most one match per regex.
+        """
         for regex in self._regexes:
-            for match in regex.finditer(text):
-                yield match
-
-
-class SearchRule(Rule):
-    """Anonymous search rule definition.
-
-    A search rule is like an anonymous rule with a twist: it will execute
-    exactly once per regular expression that matches anywhere in a line, not
-    just from the start.
-
-    For example, to search if any word starts with the letter ``h`` in a line,
-    you can use the pattern ``h\\w+``:
-
-    .. code-block:: irc
-
-        <user> hello here
-        <Bot> Found the word "hello"
-        <user> sopelunker, how are you?
-        <Bot> Found the word "how"
-
-    The match object it returns contains the first element that matches the
-    expression in the line.
-
-    .. seealso::
-
-        This rule uses :func:`re.search`. To know more about how it works,
-        see the official Python documentation.
-
-    """
-    REGEX_ATTRIBUTE = 'search_rules'
-    LAZY_ATTRIBUTE = 'search_rules_lazy_loaders'
-
-    def parse(self, text):
-        for regex in self._regexes:
-            match = regex.search(text)
+            match = regex.match(text)
             if match:
                 yield match
 
+    def get_rule_label(self):
+        """Get the rule's label.
 
-class URLCallback(Rule):
-    """URL callback rule definition.
+        :return: the rule's label
+        :rtype: str
 
-    A URL callback rule (or simply "a URL rule") detects URLs in a trigger
-    then it uses regular expressions to match at most once per URL per regular
-    expression, i.e. you can trigger between 0 and the number of regex the URL
-    callback has per URL in the IRC line.
+        This method returns the rule's label, which is the name of the
+        handler function.
+        """
+        return getattr(self._handler, '__name__', 'no-name')
 
-    Here is an example with a URL rule with the pattern
-    ``r'https://example\\.com/(.*)'``:
+    def get_plugin_name(self):
+        """Get the rule's plugin name.
 
-    .. code-block:: irc
+        :return: the rule's plugin name
+        :rtype: str
 
-        <user> https://example.com/test
-        <Bot> You triggered a URL callback, with the "/test" path
-        <user> and this URL is https://example.com/other can you get it?
-        <Bot> You triggered a URL callback, with the "/other" path
+        This method returns the rule's plugin name, which is the name of the
+        plugin the rule belongs to.
+        """
+        return self._plugin
 
-    Like generic rules, URL callback rules are not triggered by any specific
-    name and they don't have aliases.
+    def get_usable_regexes(self):
+        """Get the rule's usable regexes.
 
-    .. note::
+        :return: the rule's usable regexes
+        :rtype: list of :ref:`re.Pattern <python:re-objects>`
 
-        Unlike generic rules and commands, the :func:`~sopel.plugin.url`
-        decorator expects its decorated function to have the bot and the
-        trigger with a third parameter: the ``match`` parameter.
+        This method returns the rule's usable regexes, which are the regexes
+        that can be used to match a message.
+        """
+        return self._regexes
 
-        To use this class with an existing URL callback handler, the
-        :meth:`from_callable` classmethod **must** be used: it will wrap the
-        handler to work as intended. In that case, the ``trigger`` and the
-        ``match`` arguments will be the same when the rule executes.
-
-        This behavior makes the ``match`` parameter obsolete, which will be
-        removed in Sopel 9.
+    def get_rule_priority(self):
+        """Get the rule's priority.
 
     """
-    REGEX_ATTRIBUTE = 'url_regex'
-    LAZY_ATTRIBUTE = 'url_lazy_loaders'
+    def __init__(self, name, aliases=None, **kwargs):
+        """Initialize a named rule.
 
-    @classmethod
-    def from_callable(cls, settings, handler):
-        execute_handler = handler
-        regexes = cls.regex_from_callable(settings, handler)
-        kwargs = cls.kwargs_from_callable(handler)
+        :param str name: the rule's name
+        :param aliases: the rule's aliases
+        :type aliases: list or tuple of str
+        :param kwargs: extra arguments to pass to the parent class
 
-        # do we need to handle the match parameter?
-        # old style URL callback: callable(bot, trigger, match)
-        # new style: callable(bot, trigger)
-        match_count = 3
-        if inspect.ismethod(handler):
-            # account for the 'self' parameter when the handler is a method
-            match_count = 4
+        The rule's name is used as the primary way to trigger the rule. The
+        rule's aliases are alternative ways to trigger the rule.
+        """
+        super().__init__(**kwargs)
+        self._name = name
+        self._aliases = aliases or []
 
-        argspec = inspect.getfullargspec(handler)
+    def get_rule_label(self):
+        """Get the rule's label.
 
-        if len(argspec.args) >= match_count:
-            @functools.wraps(handler)
-            def execute_handler(bot, trigger):
-                return handler(bot, trigger, match=trigger)
+        :return: the rule's label
+        :rtype: str
 
-        kwargs.update({
-            'handler': execute_handler,
-            'schemes': settings.core.auto_url_schemes,
-        })
+        This method returns the rule's label, which is the rule's name.
+        """
+        return self._name
+
+    def escape_name(self, name):
+        """Escape a name for use in a regex.
+from sqlalchemy import text
 
         return cls(regexes, **kwargs)
 

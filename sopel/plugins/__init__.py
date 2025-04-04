@@ -1,31 +1,3 @@
-"""Sopel's plugins interface.
-
-.. versionadded:: 7.0
-
-Sopel uses what are called Plugin Handlers as an interface between the bot and
-its plugins (formerly called "modules"). This interface is defined by the
-:class:`~.handlers.AbstractPluginHandler` abstract class.
-
-Plugins that can be used by Sopel are provided by :func:`~.get_usable_plugins`
-in an :class:`ordered dict<collections.OrderedDict>`. This dict contains one
-and only one plugin per unique name, using a specific order:
-
-* extra directories defined in the settings
-* homedir's ``plugins`` directory
-* ``sopel.plugins`` setuptools entry points
-* ``sopel_modules``'s subpackages
-* ``sopel.modules``'s core plugins
-
-(The ``coretasks`` plugin is *always* the one from ``sopel.coretasks`` and
-cannot be overridden.)
-
-To find all plugins (no matter their sources), the :func:`~.enumerate_plugins`
-function can be used. For a more fine-grained search, ``find_*`` functions
-exist for each type of plugin.
-"""
-# Copyright 2019, Florian Strzelecki <florian.strzelecki@gmail.com>
-#
-# Licensed under the Eiffel Forum License 2.
 from __future__ import annotations
 
 import collections

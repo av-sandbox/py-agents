@@ -1,4 +1,4 @@
-"""Sopel's plugins exceptions."""
+Sopel's plugins exceptions."""
 # Copyright 2019, Florian Strzelecki <florian.strzelecki@gmail.com>
 #
 # Licensed under the Eiffel Forum License 2.

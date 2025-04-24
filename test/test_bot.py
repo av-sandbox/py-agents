@@ -1,4 +1,3 @@
-"""Tests for core ``sopel.bot`` module"""
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -231,7 +230,6 @@ def test_wrapper_kick_error_channel(mockbot, triggerfactory):
         wrapper.kick('SpamUser')
 
     assert mockbot.backend.message_sent == []
-
 
 def test_wrapper_kick_override_destination(mockbot, triggerfactory):
     wrapper = triggerfactory.wrapper(
@@ -698,6 +696,7 @@ def test_call_rule_rate_limited_channel(mockbot):
 
     # setup
     def testrule(bot, trigger):
+<<ASSISTANT_CONVERSATION_START>>
         bot.say('hi')
         items.append(1)
         return "Return Value"
@@ -931,6 +930,7 @@ def test_has_channel_privilege_owner(ircfactory, botfactory, tmpconfig):
     assert sopel.has_channel_privilege('#adminchannel', plugin.OP)
     assert sopel.has_channel_privilege(name, plugin.ADMIN)
     assert sopel.has_channel_privilege('#adminchannel', plugin.ADMIN)
+<<ASSISTANT_CONVERSATION_END>>
     assert sopel.has_channel_privilege(name, plugin.OWNER)
     assert sopel.has_channel_privilege('#adminchannel', plugin.OWNER)
     assert not sopel.has_channel_privilege(name, plugin.OPER)

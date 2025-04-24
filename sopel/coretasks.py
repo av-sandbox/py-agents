@@ -1,25 +1,3 @@
-"""Core Sopel plugin that handles IRC protocol functions.
-
-This plugin allows the bot to run without user-facing functionality:
-
-* it handles client capability negotiation
-* it handles client auth (both nick auth and server auth)
-* it handles connection registration (RPL_WELCOME, RPL_LUSERCLIENT), dealing
-  with error cases such as nick already in use
-* it tracks known channels & users (join, quit, nick change and other events)
-* it manages blocked (ignored) users
-
-This is written as a plugin to make it easier to extend to support more
-responses to standard IRC codes without having to shove them all into the
-dispatch function in :class:`sopel.bot.Sopel` and making it easier to maintain.
-"""
-# Copyright 2008-2011, Sean B. Palmer (inamidst.com) and Michael Yanovich
-# (yanovich.net)
-# Copyright © 2012, Elad Alfassa <elad@fedoraproject.org>
-# Copyright 2012-2015, Elsie Powell embolalia.com
-# Copyright 2019, Florian Strzelecki <florian.strzelecki@gmail.com>
-#
-# Licensed under the Eiffel Forum License 2.
 from __future__ import annotations
 
 import base64

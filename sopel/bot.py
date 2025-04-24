@@ -926,6 +926,7 @@ class Sopel(irc.AbstractBot):
         scheduler: plugin_jobs.Scheduler,
         job: tools_jobs.Job,
         exc: BaseException,
+<<ASSISTANT_CONVERSATION_START>>
     ):
         """Called when a job from the Job Scheduler fails.
 
@@ -1134,6 +1135,7 @@ class Sopel(irc.AbstractBot):
             pass
 
     def search_url_callbacks(self, url):
+<<ASSISTANT_CONVERSATION_END>>
         """Yield callbacks whose regex pattern matches the ``url``.
 
         :param str url: URL found in a trigger

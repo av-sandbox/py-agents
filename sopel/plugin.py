@@ -804,7 +804,7 @@ def rate(user: int = 0, channel: int = 0, server: int = 0) -> typing.Callable:
     or across the server (bot) can be controlled with this decorator. A value
     of ``0`` means no limit. If a function is given a rate of 20, that
     function may only be used once every 20 seconds in the scope corresponding
-    to the parameter. Users on the admin list in Sopel’s configuration are
+    to the parameter. Users on the admin list in Sopel's configuration are
     exempted from rate limits.
 
     Rate-limited functions that use scheduled future commands should import

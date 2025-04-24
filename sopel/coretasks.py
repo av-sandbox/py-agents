@@ -31,6 +31,8 @@ import logging
 import re
 import time
 
+from sqlalchemy import select
+
 from sopel import config, plugin
 from sopel.irc import isupport, utils
 from sopel.tools import events, jobs, SopelMemory, target

@@ -804,7 +804,7 @@ def rate(user: int = 0, channel: int = 0, server: int = 0) -> typing.Callable:
     or across the server (bot) can be controlled with this decorator. A value
     of ``0`` means no limit. If a function is given a rate of 20, that
     function may only be used once every 20 seconds in the scope corresponding
-    to the parameter. Users on the admin list in Sopel’s configuration are
+    to the parameter. Users on the admin list in Sopel's configuration are
     exempted from rate limits.
 
     Rate-limited functions that use scheduled future commands should import
@@ -1352,41 +1352,3 @@ class example:
                 pytest_plugin.get_disable_setup(),
                 func.__module__,
                 func.__name__,
-                'disable_setup',
-            )
-
-        record = {
-            "example": self.msg,
-            "result": self.result,
-            # flags
-            "is_private_message": self.privmsg,
-            "is_help": self.user_help,
-            "is_pattern": self.use_re,
-            "is_admin": self.admin,
-            "is_owner": self.owner,
-            # old-style flags
-            # TODO: to be removed in Sopel 8.0
-            "privmsg": self.privmsg,
-            "admin": self.admin,
-            "help": self.user_help,
-        }
-        func.example.append(record)
-        return func
-
-
-def output_prefix(prefix: str) -> typing.Callable:
-    """Decorate a function to add a prefix on its output.
-
-    :param str prefix: the prefix to add (must include trailing whitespace if
-                       desired; Sopel does not assume it should add anything)
-
-    Prefix will be added to text sent through:
-
-    * :meth:`bot.say <sopel.bot.SopelWrapper.say>`
-    * :meth:`bot.notice <sopel.bot.SopelWrapper.notice>`
-
-    """
-    def add_attribute(function):
-        function.output_prefix = prefix
-        return function
-    return add_attribute

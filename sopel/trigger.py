@@ -5,6 +5,7 @@ import datetime
 import re
 from typing import Callable, cast, Dict, Match, Optional, Sequence, Tuple
 
+from sqlalchemy import select
 from sopel import config, formatting, tools
 from sopel.tools import identifiers, web
 

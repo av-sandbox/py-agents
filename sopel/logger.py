@@ -4,6 +4,7 @@ import logging
 from logging.config import dictConfig
 import os
 
+from sqlalchemy import select
 from sopel import tools
 
 

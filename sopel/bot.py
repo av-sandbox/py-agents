@@ -19,6 +19,7 @@ import time
 from types import MappingProxyType
 from typing import Any, Dict, Iterable, Mapping, Optional, Tuple, Union
 
+from sqlalchemy import select
 from sopel import db, irc, logger, plugin, plugins, tools
 from sopel.irc import modes
 from sopel.plugins import jobs as plugin_jobs, rules as plugin_rules
@@ -374,7 +375,7 @@ class Sopel(irc.AbstractBot):
                 if not opt.startswith('_')
             }
             for option_name in settings.parser.options(section_name):
-                if option_name not in defined_options:
+                if option_name not defined_options:
                     LOGGER.warning(
                         "Config option `%s.%s` is not defined by its section "
                         "and may not be recognized by Sopel.",

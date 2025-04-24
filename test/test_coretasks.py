@@ -1,4 +1,3 @@
-"""coretasks.py tests"""
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -231,7 +230,7 @@ def test_execute_perform_replaces_nickname(mockbot):
     """Confirm that bot replaces ``$nickname`` placeholder in commands."""
     command = 'MODE $nickname +Xxw'
     sent_command = 'MODE {} +Xxw'.format(mockbot.config.core.nick)
-
+<<ASSISTANT_CONVERSATION_START>>
     mockbot.config.core.commands_on_connect = [command, ]
     mockbot.connection_registered = True  # For testing, simulate connected
 
@@ -465,6 +464,7 @@ def test_handle_isupport_namesx_with_multi_prefix(mockbot):
 
     assert 'NAMESX' in mockbot.isupport
     assert mockbot.backend.message_sent == [], (
+<<ASSISTANT_CONVERSATION_END>>
         'Sopel must not send PROTOCTL NAMESX '
         'when multi-prefix capability is available'
     )

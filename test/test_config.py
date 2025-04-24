@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 
 import pytest
+from sqlalchemy import select
 
 from sopel import config
 from sopel.config import types
@@ -230,7 +231,6 @@ def test_fileattribute_given_file_when_dir(fakeconfig):
 def test_configparser_env_priority_over_file(monkeypatch, fakeconfig):
     monkeypatch.setenv('SOPEL_CORE_OWNER', 'not_dgw')
     assert fakeconfig.core.owner == 'not_dgw'
-
 
 def test_configparser_multi_lines(multi_fakeconfig):
     # spam

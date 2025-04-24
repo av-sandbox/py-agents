@@ -1,4 +1,4 @@
-"""Tests for the new database functionality.
+Tests for the new database functionality.
 
 TODO: Most of these tests assume functionality tested in other tests. This is
 enough to get everything working (and is better than nothing), but best
@@ -10,6 +10,7 @@ import os
 import tempfile
 
 import pytest
+from sqlalchemy import select
 
 from sopel.db import (
     ChannelValues,
@@ -58,9 +59,9 @@ def test_get_nick_id(db):
     nick_id = db.get_nick_id(nick, create=True)
 
     # Check that one and only one nickname exists with that ID
-    nickname = session.query(Nicknames).filter(
+    nickname = session.execute(select(Nicknames).filter(
         Nicknames.nick_id == nick_id,
-    ).one()  # will raise if not one and exactly one
+    )).scalar_one()  # will raise if not one and exactly one
     assert nickname.canonical == 'Exirel'
     assert nickname.slug == nick.lower()
 
@@ -83,9 +84,9 @@ def test_get_nick_id_casemapping(db, name, slug, variant):
     # Create the nick ID
     nick_id = db.get_nick_id(nick, create=True)
 
-    registered = session.query(Nicknames) \
-                        .filter(Nicknames.canonical == name) \
-                        .all()
+    registered = session.execute(select(Nicknames)
+                        .filter(Nicknames.canonical == name)) \
+                        .scalars().all()
     assert len(registered) == 1
     assert registered[0].slug == slug
     assert registered[0].canonical == name
@@ -99,12 +100,12 @@ def test_get_nick_id_casemapping(db, name, slug, variant):
     # And no other nick IDs are created (even with create=True)
     assert nick_id == db.get_nick_id(name, create=True)
     assert nick_id == db.get_nick_id(variant, create=True)
-    assert 1 == session.query(NickIDs).count()
+    assert 1 == session.execute(select(NickIDs)).scalar_one_or_none().count
 
     # But a truly different name means a new nick ID
     new_nick_id = db.get_nick_id(name + '_test', create=True)
     assert new_nick_id != nick_id
-    assert 2 == session.query(NickIDs).count()
+    assert 2 == session.execute(select(NickIDs)).scalar_one_or_none().count
 
     session.close()
 
@@ -146,10 +147,10 @@ def test_set_nick_value(db):
         nick_id = db.get_nick_id(nick)
 
         for key, value in data.items():
-            found_value = session.query(NickValues.value) \
-                                 .filter(NickValues.nick_id == nick_id) \
-                                 .filter(NickValues.key == key) \
-                                 .scalar()
+            found_value = session.execute(select(NickValues.value)
+                                 .filter(NickValues.nick_id == nick_id)
+                                 .filter(NickValues.key == key)) \
+                                 .scalar_one()
             assert json.loads(str(found_value)) == value
 
         return nick_id
@@ -216,9 +217,9 @@ def test_unalias_nick(db):
         db.unalias_nick(alias)
 
     for alias in aliases:
-        found = session.query(Nicknames) \
-                       .filter(Nicknames.nick_id == nick_id) \
-                       .all()
+        found = session.execute(select(Nicknames)
+                       .filter(Nicknames.nick_id == nick_id)) \
+                       .scalars().all()
         assert len(found) == 1
 
     with pytest.raises(ValueError):
@@ -245,9 +246,9 @@ def test_forget_nick_group(db):
         db.forget_nick_group('Mister_Bradshaw')
 
     # Nothing else has created values, so we know the tables are empty
-    nicks = session.query(Nicknames).all()
+    nicks = session.execute(select(Nicknames)).scalars().all()
     assert len(nicks) == 0
-    data = session.query(NickValues).first()
+    data = session.execute(select(NickValues)).scalars().first()
     assert data is None
     session.close()
 
@@ -269,16 +270,16 @@ def test_merge_nick_groups(db):
 
     db.merge_nick_groups(aliases[0], aliases[1])
 
-    nick_ids = session.query(Nicknames.nick_id).all()
+    nick_ids = session.execute(select(Nicknames.nick_id)).all()
     nick_id = nick_ids[0][0]
     alias_id = nick_ids[1][0]
     assert nick_id == alias_id
 
     for key, value in finals:
-        found = session.query(NickValues.value) \
-                       .filter(NickValues.nick_id == nick_id) \
-                       .filter(NickValues.key == key) \
-                       .scalar()
+        found = session.execute(
+            select(NickValues.value)
+            .filter(NickValues.nick_id == nick_id)
+            .filter(NickValues.key == key)
         assert json.loads(str(found)) == value
     session.close()
 
@@ -286,10 +287,10 @@ def test_merge_nick_groups(db):
 def test_set_channel_value(db):
     session = db.ssession()
     db.set_channel_value('#asdf', 'qwer', 'zxcv')
-    result = session.query(ChannelValues.value) \
-                    .filter(ChannelValues.channel == '#asdf') \
-                    .filter(ChannelValues.key == 'qwer') \
-                    .scalar()
+    result = session.execute(
+        select(ChannelValues.value)
+        .filter(ChannelValues.channel == '#asdf')
+        .filter(ChannelValues.key == 'qwer')
     assert result == '"zxcv"'
     session.close()
 
@@ -352,10 +353,10 @@ def test_get_preferred_value(db):
 def test_set_plugin_value(db):
     session = db.ssession()
     db.set_plugin_value('plugname', 'qwer', 'zxcv')
-    result = session.query(PluginValues.value) \
-                    .filter(PluginValues.plugin == 'plugname') \
-                    .filter(PluginValues.key == 'qwer') \
-                    .scalar()
+    result = session.execute(
+        select(PluginValues.value)
+        .filter(PluginValues.plugin == 'plugname')
+        .filter(PluginValues.key == 'qwer')
     assert result == '"zxcv"'
     session.close()
 

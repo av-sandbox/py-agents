@@ -1,11 +1,3 @@
-"""Tests for sopel.module decorators
-
-.. important::
-
-    These tests are kept here as a proof that ``sopel.module`` is backward
-    compatible up to Sopel 9, when it will be removed.
-
-"""
 from __future__ import annotations
 
 import pytest
@@ -231,7 +223,6 @@ def test_nickname_commands_args():
         return True
     assert mock.nickname_commands == ['sopel', 'bot']
     assert not hasattr(mock, 'rule')
-
 
 def test_nickname_commands_multiple():
     @module.nickname_commands('sopel', 'bot')

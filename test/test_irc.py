@@ -231,6 +231,7 @@ def test_say(bot):
 def test_say_safe(bot):
     bot.say('Hello\r\nworld!\r\n', '#sopel')
 
+<<ASSISTANT_CONVERSATION_START>>
     assert bot.backend.message_sent == rawlist(
         'PRIVMSG #sopel :Helloworld!',
     )
@@ -412,3 +413,4 @@ def test_say_no_repeat_protection(bot):
         'PRIVMSG #sopel :...',
         'PRIVMSG #sopel :...',
     )
+<<ASSISTANT_CONVERSATION_END>>

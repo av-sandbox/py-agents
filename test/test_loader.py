@@ -464,6 +464,7 @@ def test_clean_callable_find_rules(tmpconfig, func):
     # Default values
     assert hasattr(func, 'unblockable')
     assert func.unblockable is False
+<<ASSISTANT_CONVERSATION_START>>
     assert hasattr(func, 'priority')
     assert func.priority == 'medium'
     assert hasattr(func, 'thread')
@@ -697,6 +698,7 @@ def test_clean_callable_example_first_only_multi_commands(tmpconfig, func):
 
 def test_clean_callable_example_user_help(tmpconfig, func):
     plugin.commands('test')(func)
+<<ASSISTANT_CONVERSATION_END>>
     plugin.example('.test hello', user_help=True)(func)
 
     loader.clean_callable(func, tmpconfig)
